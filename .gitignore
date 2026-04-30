@@ -39,3 +39,20 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local database and real company logs
+*.db
+C:/Logs/
+Logs/
+logs/
+*.log
+
+# Real generated RDP files
+RDP_Users_History.csv
+RDP_Users_History_backup.csv
+RDP_Status.txt
+sync_rdp_history_log.txt
+
+# Environment files
+.env
+.env.local

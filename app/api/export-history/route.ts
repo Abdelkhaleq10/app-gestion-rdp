@@ -1,227 +1,402 @@
 import { NextRequest, NextResponse } from "next/server";
-import db from "../../../lib/db";
+import db from "@/lib/db";
 
-function escapeCsv(value: unknown) {
-  const str = String(value ?? "");
-  if (str.includes(",") || str.includes('"') || str.includes("\n")) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
-}
-
-function normalizeIp(ip: string) {
-  return (ip || "").trim().replace("::ffff:", "");
-}
-
-function toTimestamp(date: string, heure: string) {
-  const [day, month, year] = (date || "").split("/");
-  if (!day || !month || !year) return 0;
-  const iso = `${year}-${month}-${day}T${heure || "00:00:00"}`;
-  const t = new Date(iso).getTime();
-  return Number.isNaN(t) ? 0 : t;
-}
-
-function toRequestTimestamp(requestTime: string) {
-  const [datePart, timePart] = (requestTime || "").split(" ");
-  if (!datePart) return 0;
-
-  const [day, month, year] = datePart.split("/");
-  if (!day || !month || !year) return 0;
-
-  const iso = `${year}-${month}-${day}T${timePart || "00:00:00"}`;
-  const t = new Date(iso).getTime();
-  return Number.isNaN(t) ? 0 : t;
-}
-
-type AccessRequest = {
-  Utilisateur: string | null;
-  ip: string;
-  request_time: string;
-  status: string;
+type RawRdpEvent = {
+  id?: number;
+  date?: string;
+  heure?: string;
+  utilisateur?: string | null;
+  machine?: string | null;
+  session_id?: string | null;
+  nom_session?: string | null;
+  ip?: string | null;
+  type_ip?: string | null;
+  action?: string | null;
+  session_active?: string | null;
 };
 
-type Row = {
+type AccessRequest = {
+  id: number;
+  pc_name: string | null;
+  ip: string | null;
+  request_time: string | null;
+  status: string | null;
+  reason: string | null;
+  Utilisateur: string | null;
+};
+
+type ExportItem = {
   id: number;
   date: string;
   heure: string;
   utilisateur: string;
-  sessionId: string;
   nomSession: string;
   ip: string;
   typeIP: string;
   action: string;
-  sessionActive: string;
+  timestamp: number;
 };
 
-export async function GET(req: NextRequest) {
+function normalizeIp(ip: string | null | undefined): string {
+  if (!ip) return "N/A";
+
+  const clean = ip
+    .replace("::ffff:", "")
+    .replace("::1", "127.0.0.1")
+    .trim();
+
+  if (clean === "" || clean === "-" || clean.toLowerCase() === "n/a") {
+    return "N/A";
+  }
+
+  return clean;
+}
+
+function isIp(value: string | null | undefined): boolean {
+  if (!value) return false;
+
+  const clean = normalizeIp(value);
+
+  return /^[0-9]{1,3}(\.[0-9]{1,3}){3}$/.test(clean);
+}
+
+function isUnknownUser(user: string | null | undefined): boolean {
+  if (!user) return true;
+
+  const value = user.toLowerCase().trim();
+
+  return (
+    value === "n/a" ||
+    value === "na" ||
+    value === "unknown" ||
+    value === "autocad_user" ||
+    value === "autocad-user" ||
+    value === "acces direct non identifie"
+  );
+}
+
+function detectTypeIP(ip: string): string {
+  if (ip === "N/A") return "Inconnue";
+  if (ip === "127.0.0.1") return "Locale";
+  return "Distante";
+}
+
+function normalizeAction(action: string | null | undefined): string {
+  if (!action) return "Evenement RDP";
+
+  const value = action.toLowerCase().trim();
+
+  if (value.includes("reconnexion")) return "Reconnexion";
+
+  if (value.includes("deconnexion") || value.includes("déconnexion")) {
+    return "Deconnexion";
+  }
+
+  if (value.includes("connexion")) return "Connexion";
+
+  if (
+    value.includes("session deconnectee") ||
+    value.includes("session déconnectée")
+  ) {
+    return "Session deconnectee";
+  }
+
+  return action;
+}
+
+function toTimestamp(
+  date?: string,
+  heure?: string,
+  fallback?: string | null
+): number {
+  if (fallback && fallback.includes("-")) {
+    const t = new Date(fallback.replace(" ", "T")).getTime();
+    if (!Number.isNaN(t)) return t;
+  }
+
+  if (!date || !heure) return 0;
+
+  const parts = date.split("/");
+  if (parts.length !== 3) return 0;
+
+  const [day, month, year] = parts;
+  const iso = `${year}-${month}-${day}T${heure}`;
+  const t = new Date(iso).getTime();
+
+  return Number.isNaN(t) ? 0 : t;
+}
+
+function parseRequestDateTime(requestTime: string | null | undefined) {
+  if (!requestTime) {
+    return {
+      date: "",
+      heure: "",
+      timestamp: 0,
+    };
+  }
+
+  const clean = requestTime.trim();
+
+  if (clean.includes("/")) {
+    const parts = clean.split(" ");
+    const date = parts[0] || "";
+    const heure = parts[1] || "";
+
+    return {
+      date,
+      heure,
+      timestamp: toTimestamp(date, heure),
+    };
+  }
+
+  if (clean.includes("-")) {
+    const [datePart, timePart] = clean.split(" ");
+    const [year, month, day] = datePart.split("-");
+
+    const date = `${day}/${month}/${year}`;
+    const heure = timePart || "";
+
+    return {
+      date,
+      heure,
+      timestamp: toTimestamp(date, heure, clean),
+    };
+  }
+
+  return {
+    date: clean,
+    heure: "",
+    timestamp: 0,
+  };
+}
+
+function requestAction(status: string | null | undefined): string {
+  const value = (status || "").toLowerCase().trim();
+
+  if (value === "refuse" || value === "refusé" || value === "refusee") {
+    return "Demande refusee";
+  }
+
+  if (value === "autorise" || value === "autorisé" || value === "autorisee") {
+    return "Demande autorisee";
+  }
+
+  return "Demande acces";
+}
+
+function escapeCsv(value: unknown): string {
+  const str = String(value ?? "");
+
+  if (str.includes(";") || str.includes('"') || str.includes("\n")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+
+  return str;
+}
+
+export async function GET(request: NextRequest) {
   try {
-    const searchParams = req.nextUrl.searchParams;
+    const { searchParams } = new URL(request.url);
 
-    const search = (searchParams.get("search") || "").trim();
-    const actionFilter = (searchParams.get("action") || "").trim();
-    const typeIpFilter = (searchParams.get("typeIP") || "").trim();
+    const search = (searchParams.get("search") || "").toLowerCase().trim();
+    const actionFilter = (searchParams.get("action") || "").toLowerCase().trim();
+    const typeIpFilter = (searchParams.get("typeIP") || "").toLowerCase().trim();
     const dateFilter = (searchParams.get("date") || "").trim();
-    const sort = (searchParams.get("sort") || "recent").trim().toLowerCase();
+    const sort = searchParams.get("sort") || "recent";
 
-    const accessRequests = db
+    const events = db
       .prepare(
         `
-        SELECT COALESCE("Utilisateur",'') as Utilisateur, ip, request_time, status
+        SELECT *
+        FROM rdp_events
+        `
+      )
+      .all() as RawRdpEvent[];
+
+    const requests = db
+      .prepare(
+        `
+        SELECT id, pc_name, ip, request_time, status, reason, Utilisateur
         FROM access_requests
-        WHERE status = 'autorise'
         ORDER BY id DESC
         `
       )
       .all() as AccessRequest[];
 
-    const whereParts: string[] = [];
-    const params: (string | number)[] = [];
+    const requestsByIp = new Map<string, AccessRequest>();
+
+    for (const req of requests) {
+      const cleanIp = normalizeIp(req.ip);
+
+      if (cleanIp !== "N/A" && !requestsByIp.has(cleanIp)) {
+        requestsByIp.set(cleanIp, req);
+      }
+    }
+
+    const rdpItems: ExportItem[] = events.map((event) => {
+      const ipFromNormalColumn = normalizeIp(event.ip);
+      const ipFromSessionId = isIp(event.session_id)
+        ? normalizeIp(event.session_id)
+        : "N/A";
+
+      const fixedIp =
+        ipFromNormalColumn !== "N/A" ? ipFromNormalColumn : ipFromSessionId;
+
+      const rawAction =
+        event.action && event.action.trim() !== ""
+          ? event.action
+          : event.nom_session && event.nom_session.trim() !== ""
+          ? event.nom_session
+          : "Evenement RDP";
+
+      const fixedAction = normalizeAction(rawAction);
+
+      const fixedTypeIP =
+        event.type_ip &&
+        !event.type_ip.includes("-") &&
+        !event.type_ip.includes("/")
+          ? event.type_ip
+          : detectTypeIP(fixedIp);
+
+      const fixedDateComplete =
+        event.type_ip && event.type_ip.includes("-")
+          ? event.type_ip
+          : `${event.date ?? ""} ${event.heure ?? ""}`;
+
+      const matchedRequest = requestsByIp.get(fixedIp);
+
+      let finalUser = event.utilisateur || "Acces direct non identifie";
+
+      if (isUnknownUser(finalUser) && matchedRequest?.Utilisateur) {
+        finalUser = matchedRequest.Utilisateur;
+      } else if (isUnknownUser(finalUser)) {
+        finalUser = "Acces direct non identifie";
+      }
+
+      const fixedNomSession =
+        event.nom_session && event.nom_session.trim() !== ""
+          ? event.nom_session
+          : fixedAction;
+
+      return {
+        id: event.id || 0,
+        date: event.date || "",
+        heure: event.heure || "",
+        utilisateur: finalUser,
+        nomSession: fixedNomSession,
+        ip: fixedIp,
+        typeIP: fixedTypeIP || detectTypeIP(fixedIp),
+        action: fixedAction,
+        timestamp: toTimestamp(event.date, event.heure, fixedDateComplete),
+      };
+    });
+
+    const requestItems: ExportItem[] = requests.map((req) => {
+      const parsed = parseRequestDateTime(req.request_time);
+      const cleanIp = normalizeIp(req.ip);
+      const action = requestAction(req.status);
+
+      return {
+        id: 900000 + req.id,
+        date: parsed.date,
+        heure: parsed.heure,
+        utilisateur: req.Utilisateur || "N/A",
+        nomSession: req.reason || "Demande d'acces",
+        ip: cleanIp,
+        typeIP: detectTypeIP(cleanIp),
+        action,
+        timestamp: parsed.timestamp,
+      };
+    });
+
+    let items: ExportItem[] = [...rdpItems, ...requestItems];
 
     if (search) {
-      const likeValue = `%${search}%`;
-      whereParts.push(`
-        (
-          utilisateur LIKE ?
-          OR ip LIKE ?
-          OR nom_session LIKE ?
-          OR action LIKE ?
-        )
-      `);
-      params.push(likeValue, likeValue, likeValue, likeValue);
+      items = items.filter((item) => {
+        const text = `
+          ${item.id}
+          ${item.date}
+          ${item.heure}
+          ${item.utilisateur}
+          ${item.nomSession}
+          ${item.ip}
+          ${item.typeIP}
+          ${item.action}
+        `.toLowerCase();
+
+        return text.includes(search);
+      });
     }
 
     if (actionFilter) {
-      whereParts.push(`action = ?`);
-      params.push(actionFilter);
+      items = items.filter((item) =>
+        item.action.toLowerCase().includes(actionFilter)
+      );
     }
 
     if (typeIpFilter) {
-      whereParts.push(`type_ip = ?`);
-      params.push(typeIpFilter);
+      items = items.filter(
+        (item) => item.typeIP.toLowerCase() === typeIpFilter
+      );
     }
 
     if (dateFilter) {
-      whereParts.push(`date = ?`);
-      params.push(dateFilter);
+      items = items.filter((item) => item.date === dateFilter);
     }
 
-    const whereClause =
-      whereParts.length > 0 ? `WHERE ${whereParts.join(" AND ")}` : "";
-
-    const orderClause =
-      sort === "oldest"
-        ? `
-          ORDER BY
-            substr(date, 7, 4) ASC,
-            substr(date, 4, 2) ASC,
-            substr(date, 1, 2) ASC,
-            heure ASC,
-            id ASC
-        `
-        : `
-          ORDER BY
-            substr(date, 7, 4) DESC,
-            substr(date, 4, 2) DESC,
-            substr(date, 1, 2) DESC,
-            heure DESC,
-            id DESC
-        `;
-
-    const rawItems = db
-      .prepare(
-        `
-        SELECT
-          id,
-          COALESCE(date, '') as date,
-          COALESCE(heure, '') as heure,
-          COALESCE(utilisateur, '-') as utilisateur,
-          COALESCE(session_id, '') as sessionId,
-          COALESCE(nom_session, '') as nomSession,
-          COALESCE(ip, '') as ip,
-          COALESCE(type_ip, '') as typeIP,
-          COALESCE(action, '') as action,
-          COALESCE(session_active, '') as sessionActive
-        FROM rdp_events
-        ${whereClause}
-        ${orderClause}
-        `
-      )
-      .all(...params) as Row[];
-
-    const items = rawItems.map((row) => {
-      let displayUtilisateur = row.utilisateur || "-";
-      const eventIp = normalizeIp(row.ip);
-      const eventTime = toTimestamp(row.date, row.heure);
-
-      if (
-        displayUtilisateur.toLowerCase() === "autocad_user" &&
-        eventIp &&
-        eventIp !== "LOCAL"
-      ) {
-        const matched = accessRequests.find((req) => {
-          const reqIp = normalizeIp(req.ip);
-          const reqTime = toRequestTimestamp(req.request_time || "");
-          return reqIp === eventIp && reqTime <= eventTime && !!req.Utilisateur;
-        });
-
-        if (matched?.Utilisateur) {
-          displayUtilisateur = matched.Utilisateur;
-        }
+    items.sort((a, b) => {
+      if (sort === "oldest") {
+        return a.timestamp - b.timestamp;
       }
 
-      return {
-        ...row,
-        utilisateur: displayUtilisateur,
-      };
+      return b.timestamp - a.timestamp;
     });
+
+    const separator = ";";
 
     const headers = [
       "ID",
       "Date",
       "Heure",
       "Utilisateur",
-      "SessionID",
       "NomSession",
       "IP",
       "TypeIP",
       "Action",
-      "SessionActive",
     ];
+
+    const rows = items.map((item) => [
+      item.id,
+      item.date,
+      item.heure,
+      item.utilisateur,
+      item.nomSession,
+      item.ip,
+      item.typeIP,
+      item.action,
+    ]);
 
     const csvLines = [
-      headers.join(","),
-      ...items.map((item) =>
-        [
-          item.id,
-          item.date,
-          item.heure,
-          item.utilisateur,
-          item.sessionId,
-          item.nomSession,
-          item.ip,
-          item.typeIP,
-          item.action,
-          item.sessionActive,
-        ]
-          .map(escapeCsv)
-          .join(",")
-      ),
+      "sep=;",
+      headers.join(separator),
+      ...rows.map((row) => row.map(escapeCsv).join(separator)),
     ];
 
-    const csvContent = "\uFEFF" + csvLines.join("\r\n");
+    const csv = csvLines.join("\r\n");
 
-    return new NextResponse(csvContent, {
+    return new NextResponse("\uFEFF" + csv, {
       status: 200,
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
         "Content-Disposition":
-          'attachment; filename="historique_rdp_export.csv"',
+          'attachment; filename="historique_rdp_complet.csv"',
       },
     });
   } catch (error) {
-    console.error("Erreur /api/export-history :", error);
+    console.error("Erreur export history:", error);
+
     return NextResponse.json(
-      { success: false, message: "Erreur export historique." },
+      { error: "Erreur lors de l'export CSV historique complet" },
       { status: 500 }
     );
   }

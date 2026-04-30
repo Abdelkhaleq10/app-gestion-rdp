@@ -96,6 +96,9 @@ export default function HistoriquePage() {
   function actionBadgeClass(action: string) {
     const value = action.toLowerCase();
 
+    if (value.includes("autorisee")) return "bg-green-100 text-green-700";
+    if (value.includes("refusee")) return "bg-red-100 text-red-700";
+
     if (value === "connexion") return "bg-green-100 text-green-700";
     if (value === "deconnexion") return "bg-red-100 text-red-700";
     if (value === "reconnexion") return "bg-blue-100 text-blue-700";
@@ -125,9 +128,11 @@ export default function HistoriquePage() {
                 <p className="text-sm uppercase tracking-[0.2em] text-slate-400 mb-2">
                   SRM - SM | Interface responsable
                 </p>
+
                 <h1 className="text-3xl md:text-4xl font-bold text-slate-800">
                   Historique RDP
                 </h1>
+
                 <p className="text-gray-600 mt-2">
                   Consultation, recherche, filtrage et export des connexions RDP.
                 </p>
@@ -158,6 +163,7 @@ export default function HistoriquePage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Recherche
                   </label>
+
                   <div className="flex gap-2">
                     <input
                       type="text"
@@ -166,6 +172,7 @@ export default function HistoriquePage() {
                       placeholder="Utilisateur, IP, session, action..."
                       className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+
                     <button
                       onClick={handleSearch}
                       className="rounded-xl bg-blue-600 text-white font-semibold px-4 py-3 hover:bg-blue-700"
@@ -179,6 +186,7 @@ export default function HistoriquePage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Action
                   </label>
+
                   <select
                     value={actionFilter}
                     onChange={(e) => {
@@ -191,6 +199,9 @@ export default function HistoriquePage() {
                     <option value="Connexion">Connexion</option>
                     <option value="Deconnexion">Deconnexion</option>
                     <option value="Reconnexion">Reconnexion</option>
+                    <option value="Session deconnectee">Session deconnectee</option>
+                    <option value="Demande autorisee">Demande autorisee</option>
+                    <option value="Demande refusee">Demande refusee</option>
                   </select>
                 </div>
 
@@ -198,6 +209,7 @@ export default function HistoriquePage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Type IP
                   </label>
+
                   <select
                     value={typeIpFilter}
                     onChange={(e) => {
@@ -217,6 +229,7 @@ export default function HistoriquePage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Tri
                   </label>
+
                   <select
                     value={sort}
                     onChange={(e) => {
@@ -236,6 +249,7 @@ export default function HistoriquePage() {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Date
                   </label>
+
                   <input
                     type="text"
                     value={dateFilter}
@@ -264,6 +278,7 @@ export default function HistoriquePage() {
                 <p className="text-gray-700 font-medium">
                   Total des lignes : {total}
                 </p>
+
                 <p className="text-gray-700 font-medium">
                   Page {page} / {totalPages}
                 </p>
@@ -282,14 +297,13 @@ export default function HistoriquePage() {
                         <th className="py-3 px-3">Date</th>
                         <th className="py-3 px-3">Heure</th>
                         <th className="py-3 px-3">Utilisateur</th>
-                        <th className="py-3 px-3">SessionID</th>
                         <th className="py-3 px-3">NomSession</th>
                         <th className="py-3 px-3">IP</th>
                         <th className="py-3 px-3">TypeIP</th>
                         <th className="py-3 px-3">Action</th>
-                        <th className="py-3 px-3">SessionActive</th>
                       </tr>
                     </thead>
+
                     <tbody>
                       {history.map((item) => (
                         <tr key={item.id} className="border-b hover:bg-gray-50">
@@ -297,7 +311,6 @@ export default function HistoriquePage() {
                           <td className="py-3 px-3">{item.date || "-"}</td>
                           <td className="py-3 px-3">{item.heure || "-"}</td>
                           <td className="py-3 px-3">{item.utilisateur || "-"}</td>
-                          <td className="py-3 px-3">{item.sessionId || "-"}</td>
                           <td className="py-3 px-3">{item.nomSession || "-"}</td>
                           <td className="py-3 px-3">{item.ip || "-"}</td>
                           <td className="py-3 px-3">{item.typeIP || "-"}</td>
@@ -310,7 +323,6 @@ export default function HistoriquePage() {
                               {item.action || "-"}
                             </span>
                           </td>
-                          <td className="py-3 px-3">{item.sessionActive || "-"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -330,7 +342,9 @@ export default function HistoriquePage() {
                     </span>
 
                     <button
-                      onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                      onClick={() =>
+                        setPage((p) => Math.min(p + 1, totalPages))
+                      }
                       disabled={page === totalPages}
                       className="px-4 py-2 rounded-lg bg-slate-800 text-white disabled:opacity-50"
                     >
