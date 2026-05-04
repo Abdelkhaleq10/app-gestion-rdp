@@ -47,7 +47,7 @@ export default function DashboardPage() {
                   Dashboard responsable
                 </h1>
                 <p className="text-gray-600 mt-2">
-                  Supervision globale du poste principal et des acces.
+                  Supervision globale du poste principal et des accès.
                 </p>
               </div>
 
@@ -93,7 +93,7 @@ export default function DashboardPage() {
 
               <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <h2 className="text-xl font-semibold text-slate-800 mb-4">
-                  Total des evenements RDP
+                  Total des  événements RDP
                 </h2>
                 <p className="text-4xl font-bold text-slate-800">
                   {data?.total_rdp_events ?? 0}
@@ -102,7 +102,7 @@ export default function DashboardPage() {
 
               <div className="bg-slate-50 rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <h2 className="text-xl font-semibold text-slate-800 mb-4">
-                  Total des demandes d'acces
+                  Total des demandes d'accès
                 </h2>
                 <p className="text-4xl font-bold text-slate-800">
                   {data?.total_access_requests ?? 0}

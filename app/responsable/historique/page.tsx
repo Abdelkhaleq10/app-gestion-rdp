@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import ResponsableGuard from "../../../components/ResponsableGuard";
 import ResponsableNav from "../../../components/ResponsableNav";
 
+const PAGE_SIZE = 20;
+
 type HistoryItem = {
   id: number;
   date: string;
@@ -18,10 +20,16 @@ type HistoryItem = {
 };
 
 type HistoryResponse = {
-  items: HistoryItem[];
+  success?: boolean;
+  items?: HistoryItem[];
+  data?: HistoryItem[];
+  history?: HistoryItem[];
+  events?: HistoryItem[];
+  rows?: HistoryItem[];
   total: number;
   page: number;
-  pageSize: number;
+  pageSize?: number;
+  limit?: number;
   totalPages: number;
 };
 
@@ -46,7 +54,7 @@ export default function HistoriquePage() {
 
       const params = new URLSearchParams({
         page: String(currentPage),
-        pageSize: "20",
+        pageSize: String(PAGE_SIZE),
         search,
         action: actionFilter,
         typeIP: typeIpFilter,
@@ -60,10 +68,23 @@ export default function HistoriquePage() {
 
       const data: HistoryResponse = await res.json();
 
-      setHistory(Array.isArray(data.items) ? data.items : []);
-      setPage(data.page || 1);
+      const items =
+        Array.isArray(data.items)
+          ? data.items
+          : Array.isArray(data.data)
+          ? data.data
+          : Array.isArray(data.history)
+          ? data.history
+          : Array.isArray(data.events)
+          ? data.events
+          : Array.isArray(data.rows)
+          ? data.rows
+          : [];
+
+      setHistory(items);
+      setPage(data.page || currentPage || 1);
       setTotalPages(data.totalPages || 1);
-      setTotal(data.total || 0);
+      setTotal(data.total || items.length || 0);
     } catch (error) {
       console.error("Erreur chargement historique :", error);
       setHistory([]);
@@ -93,15 +114,42 @@ export default function HistoriquePage() {
     setPage(1);
   }
 
+  function displayNumber(index: number) {
+    const positionInAllResults = (page - 1) * PAGE_SIZE + index;
+
+    if (sort === "oldest") {
+      return positionInAllResults + 1;
+    }
+
+    return total - positionInAllResults;
+  }
+
   function actionBadgeClass(action: string) {
     const value = action.toLowerCase();
 
-    if (value.includes("autorisee")) return "bg-green-100 text-green-700";
-    if (value.includes("refusee")) return "bg-red-100 text-red-700";
+    if (value.includes("autorisee") || value.includes("autorisée")) {
+      return "bg-green-100 text-green-700";
+    }
 
-    if (value === "connexion") return "bg-green-100 text-green-700";
-    if (value === "deconnexion") return "bg-red-100 text-red-700";
-    if (value === "reconnexion") return "bg-blue-100 text-blue-700";
+    if (value.includes("refusee") || value.includes("refusée")) {
+      return "bg-red-100 text-red-700";
+    }
+
+    if (value === "connexion") {
+      return "bg-green-100 text-green-700";
+    }
+
+    if (value === "deconnexion" || value === "déconnexion") {
+      return "bg-red-100 text-red-700";
+    }
+
+    if (value === "reconnexion") {
+      return "bg-blue-100 text-blue-700";
+    }
+
+    if (value === "session deconnectee" || value === "session déconnectée") {
+      return "bg-gray-100 text-gray-700";
+    }
 
     return "bg-gray-100 text-gray-700";
   }
@@ -197,11 +245,11 @@ export default function HistoriquePage() {
                   >
                     <option value="">Toutes</option>
                     <option value="Connexion">Connexion</option>
-                    <option value="Deconnexion">Deconnexion</option>
+                    <option value="Deconnexion">Déconnexion</option>
                     <option value="Reconnexion">Reconnexion</option>
-                    <option value="Session deconnectee">Session deconnectee</option>
-                    <option value="Demande autorisee">Demande autorisee</option>
-                    <option value="Demande refusee">Demande refusee</option>
+                    <option value="Session deconnectee">Session déconnectée</option>
+                    <option value="Demande autorisee">Demande autorisée</option>
+                    <option value="Demande refusee">Demande refusée</option>
                   </select>
                 </div>
 
@@ -257,7 +305,7 @@ export default function HistoriquePage() {
                       setDateFilter(e.target.value);
                       setPage(1);
                     }}
-                    placeholder="Exemple : 24/04/2026"
+                    placeholder="Exemple : 00/00/0000"
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -267,7 +315,7 @@ export default function HistoriquePage() {
                     onClick={handleReset}
                     className="rounded-xl bg-slate-800 text-white font-semibold px-5 py-3 hover:bg-slate-700"
                   >
-                    Reinitialiser les filtres
+                    Réinitialiser les filtres
                   </button>
                 </div>
               </div>
@@ -287,13 +335,13 @@ export default function HistoriquePage() {
               {loading ? (
                 <p className="text-gray-500">Chargement...</p>
               ) : history.length === 0 ? (
-                <p className="text-gray-500">Aucun historique RDP trouve.</p>
+                <p className="text-gray-500">Aucun historique RDP trouvée.</p>
               ) : (
                 <>
                   <table className="w-full border-collapse text-sm">
                     <thead>
                       <tr className="border-b text-left text-gray-700 bg-slate-50">
-                        <th className="py-3 px-3">ID</th>
+                        <th className="py-3 px-3">N°</th>
                         <th className="py-3 px-3">Date</th>
                         <th className="py-3 px-3">Heure</th>
                         <th className="py-3 px-3">Utilisateur</th>
@@ -301,17 +349,27 @@ export default function HistoriquePage() {
                         <th className="py-3 px-3">IP</th>
                         <th className="py-3 px-3">TypeIP</th>
                         <th className="py-3 px-3">Action</th>
+                        <th className="py-3 px-3">Ref DB</th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {history.map((item) => (
-                        <tr key={item.id} className="border-b hover:bg-gray-50">
-                          <td className="py-3 px-3">{item.id}</td>
+                      {history.map((item, index) => (
+                        <tr
+                          key={`${item.id}-${item.date}-${item.heure}-${index}`}
+                          className="border-b hover:bg-gray-50"
+                        >
+                          <td className="py-3 px-3 font-semibold text-slate-700">
+                            {displayNumber(index)}
+                          </td>
                           <td className="py-3 px-3">{item.date || "-"}</td>
                           <td className="py-3 px-3">{item.heure || "-"}</td>
-                          <td className="py-3 px-3">{item.utilisateur || "-"}</td>
-                          <td className="py-3 px-3">{item.nomSession || "-"}</td>
+                          <td className="py-3 px-3">
+                            {item.utilisateur || "-"}
+                          </td>
+                          <td className="py-3 px-3">
+                            {item.nomSession || "-"}
+                          </td>
                           <td className="py-3 px-3">{item.ip || "-"}</td>
                           <td className="py-3 px-3">{item.typeIP || "-"}</td>
                           <td className="py-3 px-3">
@@ -322,6 +380,9 @@ export default function HistoriquePage() {
                             >
                               {item.action || "-"}
                             </span>
+                          </td>
+                          <td className="py-3 px-3 text-gray-500">
+                            {item.id}
                           </td>
                         </tr>
                       ))}

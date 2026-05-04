@@ -51,13 +51,13 @@ export default function ResponsableLoginPage() {
           </h1>
 
           <p className="text-slate-200 text-sm leading-relaxed">
-            Acces reserve a l interface d administration et de supervision du poste principal.
+            Accès reserve à l'interface d'administration et de supervision du poste principal.
           </p>
         </div>
 
         <div className="p-6 md:p-8">
           <div className="mb-6 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800 font-medium">
-            Cette zone est reservee au responsable.
+            Cette zone est réservée au responsable.
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
@@ -93,7 +93,7 @@ export default function ResponsableLoginPage() {
 
         <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 text-center">
           <p className="text-xs text-gray-500">
-            Version 1 - Espace responsable de gestion et de supervision
+             Espace responsable de gestion et de supervision
           </p>
         </div>
       </div>

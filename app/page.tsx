@@ -60,7 +60,7 @@ export default function HomePage() {
     const value = utilisateur.trim();
 
     if (!value) {
-      setMessage("Veuillez saisir votre nom d utilisateur.");
+      setMessage("Veuillez saisir votre nom d'utilisateur.");
       setMessageType("error");
       setAccessGranted(false);
       return;
@@ -95,7 +95,7 @@ export default function HomePage() {
       await loadStatus();
     } catch (error) {
       console.error("Erreur demande:", error);
-      setMessage("Erreur lors de la demande d acces.");
+      setMessage("Erreur lors de la demande d'accès.");
       setMessageType("error");
       setAccessGranted(false);
     } finally {
@@ -119,24 +119,22 @@ export default function HomePage() {
         <div className="bg-slate-900 px-6 md:px-10 py-8 md:py-10 text-white">
           <div className="max-w-3xl">
             <p className="text-sm uppercase tracking-[0.2em] text-slate-300 mb-3">
-              SRM - SM | Controle d acces RDP
+              SRM - SM | Controle d'accès RDP
             </p>
 
             <h1 className="text-3xl md:text-4xl font-bold mb-3">
-              Gestion d acces au poste principal
+              Gestion d'accès au poste principal
             </h1>
 
             <p className="text-slate-200 text-sm md:text-base leading-relaxed">
-              Cette interface permet aux employes d envoyer une demande d acces
-              au poste principal. Si le poste est libre, l acces peut etre
-              autorise et la connexion RDP devient disponible.
+              Envoyez une demande d'accès. Si le poste est libre, la connexion RDP sera mise à disposition.
             </p>
           </div>
         </div>
 
         <div className="p-6 md:p-8">
           <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800 font-medium">
-            Acces reserve a un seul employe a la fois.
+            Accès réservé à un seul employé à la fois.
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -160,14 +158,14 @@ export default function HomePage() {
               </div>
 
               <p className="mt-4 text-sm text-gray-600 leading-relaxed">
-                Le systeme verifie automatiquement si le poste principal est
-                libre ou occupe.
+                Le système vérifie automatiquement si le poste principal est
+                libre ou occupé.
               </p>
             </div>
 
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-sm">
               <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                Informations en temps reel
+                Informations en temps réel
               </p>
 
               <div className="space-y-3 text-sm text-gray-700">
@@ -180,7 +178,7 @@ export default function HomePage() {
 
                 <p>
                   <span className="font-semibold text-gray-900">
-                    Derniere verification :
+                    Dérniere vérification :
                   </span>{" "}
                   {status.date_verification || "Non disponible"}
                 </p>
@@ -190,10 +188,10 @@ export default function HomePage() {
 
           <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
             <h2 className="text-xl font-bold text-slate-800 mb-2">
-              Demande d acces
+              Demande d'accès
             </h2>
             <p className="text-sm text-gray-600 mb-5">
-              Saisissez votre nom puis envoyez votre demande d acces au poste
+              Saisissez votre nom puis envoyez votre demande d'accès au poste
               principal.
             </p>
 
@@ -206,7 +204,7 @@ export default function HomePage() {
                 type="text"
                 value={utilisateur}
                 onChange={(e) => setUtilisateur(e.target.value)}
-                placeholder="Exemple : Abdelkhaleq El Mataoui"
+                placeholder="Nom Complet"
                 className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -216,7 +214,7 @@ export default function HomePage() {
               disabled={loading}
               className="w-full rounded-xl bg-blue-600 text-white font-semibold py-3.5 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
-              {loading ? "Traitement de la demande..." : "Demander l acces"}
+              {loading ? "Traitement de la demande..." : "Demander l'accès"}
             </button>
 
             {message && (
@@ -245,7 +243,7 @@ export default function HomePage() {
             <div className="mt-6 pt-5 border-t border-gray-200">
               <p className="text-xs text-gray-500 leading-relaxed">
                 Remarque : le bouton RDP apparait uniquement lorsque la demande
-                d acces est autorisee.
+                d'accès est autorisée.
               </p>
             </div>
           </div>
@@ -253,7 +251,7 @@ export default function HomePage() {
 
         <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 text-center">
           <p className="text-xs text-gray-500">
-            Version 1 - Application web de gestion et de controle d acces via
+             Application web de gestion et de controle d'accès via
             RDP
           </p>
         </div>

@@ -122,10 +122,10 @@ export default function DemandesPage() {
                   SRM - SM | Interface responsable
                 </p>
                 <h1 className="text-3xl md:text-4xl font-bold text-slate-800">
-                  Historique des demandes d'acces
+                  Historique des demandes d'accès
                 </h1>
                 <p className="text-gray-600 mt-2">
-                  Suivi, recherche, filtrage et export des demandes envoyees par les employes.
+                  Suivi, recherche, filtrage et export des demandes envoyées par les employés.
                 </p>
               </div>
 
@@ -219,7 +219,7 @@ export default function DemandesPage() {
                       setDateFilter(e.target.value);
                       setPage(1);
                     }}
-                    placeholder="Exemple : 24/04/2026"
+                    placeholder="Exemple : 00/00/0000"
                     className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -229,7 +229,7 @@ export default function DemandesPage() {
                     onClick={handleReset}
                     className="rounded-xl bg-slate-800 text-white font-semibold px-5 py-3 hover:bg-slate-700"
                   >
-                    Reinitialiser les filtres
+                    Réinitialiser les filtres
                   </button>
                 </div>
               </div>
@@ -248,7 +248,7 @@ export default function DemandesPage() {
               {loading ? (
                 <p className="text-gray-500">Chargement...</p>
               ) : demandes.length === 0 ? (
-                <p className="text-gray-500">Aucune demande trouvee.</p>
+                <p className="text-gray-500">Aucune demande trouvée.</p>
               ) : (
                 <>
                   <table className="w-full border-collapse text-sm">
@@ -290,7 +290,7 @@ export default function DemandesPage() {
                       disabled={page === 1}
                       className="px-4 py-2 rounded-lg bg-slate-800 text-white disabled:opacity-50"
                     >
-                      Precedent
+                      Précédent
                     </button>
 
                     <span className="px-4 py-2 rounded-lg bg-blue-100 text-blue-700 font-semibold">
