@@ -7,7 +7,7 @@ export default function ResponsableLoginPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     try {
@@ -39,62 +39,81 @@ export default function ResponsableLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-100 via-gray-100 to-gray-200 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-        <div className="bg-slate-900 px-6 py-8 text-white">
-          <p className="text-sm uppercase tracking-[0.2em] text-slate-300 mb-3">
-            SRM - SM | Interface responsable
-          </p>
+    <main className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-blue-50 flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
+          <div className="bg-blue-950 px-8 py-8 text-white">
+            <div className="flex items-center gap-4">
+              <div className="h-14 w-14 rounded-2xl border border-white/20 bg-white/10 flex items-center justify-center text-2xl">
+                🖥️
+              </div>
 
-          <h1 className="text-3xl font-bold mb-3">
-            Connexion responsable
-          </h1>
+              <div>
+                <p className="text-sm uppercase tracking-[0.25em] text-blue-200">
+                  SRM-SM
+                </p>
+                <h1 className="text-2xl font-black mt-1">
+                  Connexion responsable
+                </h1>
+              </div>
+            </div>
 
-          <p className="text-slate-200 text-sm leading-relaxed">
-            Accès reserve à l'interface d'administration et de supervision du poste principal.
-          </p>
-        </div>
-
-        <div className="p-6 md:p-8">
-          <div className="mb-6 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800 font-medium">
-            Cette zone est réservée au responsable.
+            <p className="text-blue-100 mt-5 text-sm leading-6">
+              Acces reserve a l'interface d'administration, de supervision du
+              poste principal et de consultation de l'historique RDP.
+            </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div>
-              <label className="block text-sm font-semibold text-gray-800 mb-2">
-                Mot de passe
-              </label>
-
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Entrez le mot de passe"
-                className="w-full rounded-xl border border-gray-300 px-4 py-3 text-gray-800 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+          <div className="p-8">
+            <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-4 text-sm text-blue-900 font-semibold">
+              Cette zone est reservee au responsable autorise.
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-blue-600 text-white font-semibold py-3.5 hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-            >
-              {loading ? "Connexion..." : "Se connecter"}
-            </button>
-          </form>
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-2">
+                  Mot de passe
+                </label>
 
-          {message && (
-            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-              {message}
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setMessage("");
+                  }}
+                  placeholder="Entrez le mot de passe responsable"
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 bg-white outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full rounded-2xl bg-blue-700 hover:bg-blue-800 text-white font-black py-3.5 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-200"
+              >
+                {loading ? "Connexion..." : "Se connecter"}
+              </button>
+            </form>
+
+            {message && (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                {message}
+              </div>
+            )}
+
+            <div className="mt-6 rounded-2xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600">
+              Apres authentification, le responsable peut consulter le tableau
+              de bord, les demandes d'acces, l'historique RDP et exporter les
+              donnees.
             </div>
-          )}
-        </div>
+          </div>
 
-        <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 text-center">
-          <p className="text-xs text-gray-500">
-             Espace responsable de gestion et de supervision
-          </p>
+          <div className="border-t border-slate-200 bg-slate-50 px-6 py-4 text-center">
+            <p className="text-xs text-slate-500">
+              Espace responsable de gestion et de supervision RDP
+            </p>
+          </div>
         </div>
       </div>
     </main>
