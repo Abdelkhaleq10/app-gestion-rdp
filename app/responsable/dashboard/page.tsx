@@ -323,12 +323,7 @@ export default function ResponsableDashboardPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button
-                onClick={loadDashboard}
-                className="rounded-2xl bg-blue-700 hover:bg-blue-800 text-white px-5 py-3 font-black shadow-lg shadow-blue-200"
-              >
-                ↻ Actualiser
-              </button>
+            
               <a
                 href="/api/export-history"
                 className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 font-black shadow-lg shadow-emerald-100"

@@ -320,12 +320,6 @@ export default function HistoriquePage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => loadHistory(page)}
-                className="rounded-2xl bg-blue-700 hover:bg-blue-800 text-white px-5 py-3 font-black shadow-lg shadow-blue-200"
-              >
-                ↻ Actualiser
-              </button>
 
               <a
                 href={exportUrl()}

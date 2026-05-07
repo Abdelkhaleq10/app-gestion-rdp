@@ -22,6 +22,17 @@ type RequestResult = {
   status?: string;
 };
 
+type HistoryItem = {
+  id: number;
+  date: string;
+  heure: string;
+  utilisateur: string;
+  nomSession: string;
+  ip: string;
+  typeIP: string;
+  action: string;
+};
+
 function getEtatLabel(status: StatusData | null) {
   const raw =
     status?.etat_poste ||
@@ -54,16 +65,43 @@ function getDateVerification(status: StatusData | null) {
   );
 }
 
+function isValidUserName(value: string) {
+  const user = String(value || "").trim().toLowerCase();
+
+  if (!user) return false;
+  if (user === "n/a") return false;
+  if (user === "-") return false;
+  if (user.includes("acces direct non identifie")) return false;
+  if (user === "autocad_user") return false;
+
+  return true;
+}
+
+function isActiveAction(action: string) {
+  const value = String(action || "").toLowerCase();
+
+  if (value.includes("demande autorisee")) return true;
+  if (value.includes("reconnexion")) return true;
+  if (value.includes("connexion") && !value.includes("deconnexion")) return true;
+
+  return false;
+}
+
 export default function EmployePage() {
   const router = useRouter();
 
   const [employeName, setEmployeName] = useState("");
   const [status, setStatus] = useState<StatusData | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
+
   const [requestLoading, setRequestLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [requestAuthorized, setRequestAuthorized] = useState(false);
-  const [lastAction, setLastAction] = useState("Aucune demande envoyee.");
+
+  const [lastActivityText, setLastActivityText] = useState(
+    "Aucune activite recente"
+  );
+  const [currentUserText, setCurrentUserText] = useState("Aucun");
 
   const etat = getEtatLabel(status);
   const sessions = getSessions(status);
@@ -81,14 +119,20 @@ export default function EmployePage() {
     }
 
     setEmployeName(savedName);
-    loadStatus();
+    loadAllData();
 
     const interval = setInterval(() => {
-      loadStatus();
+      loadAllData();
     }, 5000);
 
     return () => clearInterval(interval);
   }, [router]);
+
+  async function loadAllData() {
+    await loadStatus();
+    await loadHistoryInfos();
+    await loadCurrentRdpUser();
+  }
 
   async function loadStatus() {
     try {
@@ -105,6 +149,106 @@ export default function EmployePage() {
       setStatus(null);
     } finally {
       setLoadingStatus(false);
+    }
+  }
+
+  async function loadHistoryInfos() {
+    try {
+      const response = await fetch("/api/history?page=1&pageSize=20&sort=recent", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      const items: HistoryItem[] = Array.isArray(data.items)
+        ? data.items
+        : Array.isArray(data.data)
+        ? data.data
+        : Array.isArray(data.history)
+        ? data.history
+        : Array.isArray(data.events)
+        ? data.events
+        : Array.isArray(data.rows)
+        ? data.rows
+        : [];
+
+      if (items.length > 0) {
+        const last = items[0];
+
+        setLastActivityText(
+          `${last.action || last.nomSession || "Activite"} - ${
+            last.date || "-"
+          } ${last.heure || ""}`
+        );
+      } else {
+        setLastActivityText("Aucune activite recente");
+      }
+
+      const authorizedItem = items.find((item) => {
+        const action = String(item.action || "").toLowerCase();
+
+        return (
+          isValidUserName(item.utilisateur) &&
+          action.includes("demande autorisee")
+        );
+      });
+
+      const activeItem = items.find((item) => {
+        const action = item.action || item.nomSession || "";
+        return isValidUserName(item.utilisateur) && isActiveAction(action);
+      });
+
+      const selectedUser = authorizedItem || activeItem;
+
+      if (selectedUser) {
+        setCurrentUserText(selectedUser.utilisateur);
+      } else if (sessions > 0) {
+        setCurrentUserText("Session active");
+      } else {
+        setCurrentUserText("Aucun");
+      }
+    } catch (error) {
+      console.error("Erreur chargement historique recent:", error);
+      setLastActivityText("Non disponible");
+
+      if (sessions > 0) {
+        setCurrentUserText("Session active");
+      } else {
+        setCurrentUserText("Aucun");
+      }
+    }
+  }
+
+  async function loadCurrentRdpUser() {
+    try {
+      const response = await fetch("/api/current-rdp-user", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
+
+      const windowsUser = String(data?.utilisateur_actuel || "")
+        .trim()
+        .toLowerCase();
+
+      /*
+        autocad_user = compte Windows/RDP technique.
+        On ne l'affiche pas comme employe actuel.
+        L'utilisateur reel vient de l'historique des demandes autorisees.
+      */
+      if (
+        data?.session_active &&
+        data?.utilisateur_actuel &&
+        windowsUser !== "autocad_user"
+      ) {
+        setCurrentUserText(data.utilisateur_actuel);
+      }
+
+      if (!data?.session_active && sessions === 0) {
+        setCurrentUserText("Aucun");
+      }
+    } catch (error) {
+      console.error("Erreur chargement utilisateur RDP actuel:", error);
     }
   }
 
@@ -148,31 +292,31 @@ export default function EmployePage() {
         setMessage("Acces refuse. Le poste principal est actuellement occupe.");
       }
 
-      setLastAction(
-        authorized
-          ? "Derniere demande autorisee pour " + employeName + "."
-          : "Derniere demande refusee pour " + employeName + "."
-      );
+      if (authorized) {
+        setCurrentUserText(employeName);
+      }
 
-      await loadStatus();
+      await loadAllData();
     } catch (error) {
       console.error("Erreur demande acces:", error);
       setMessage("Erreur lors de l'envoi de la demande d'acces.");
       setRequestAuthorized(false);
-      setLastAction("Erreur lors de l'envoi de la demande.");
     } finally {
       setRequestLoading(false);
     }
   }
 
   function handleLogout() {
+    localStorage.removeItem("employe_id");
     localStorage.removeItem("employe_nom");
     router.push("/employe/login");
   }
 
-function handleRdpConnect() {
-  window.location.href = "/api/rdp-file";
-}
+  function handleRdpConnect() {
+    window.location.href = "/api/rdp-file";
+  }
+
+  const displayedCurrentUser = isLibre ? "Aucun" : currentUserText;
 
   if (!employeName) {
     return (
@@ -190,6 +334,7 @@ function handleRdpConnect() {
             <div className="h-10 w-10 rounded-xl border border-white/20 bg-white/10 flex items-center justify-center text-xl">
               🖥️
             </div>
+
             <div>
               <p className="font-bold text-lg">SRM-SM</p>
               <p className="text-xs text-blue-200">Acces au poste principal</p>
@@ -198,7 +343,7 @@ function handleRdpConnect() {
 
           <div className="text-center">
             <h1 className="text-xl md:text-2xl font-black">
-              Gestion d'acces RDP
+              Gestion d&apos;acces RDP
             </h1>
           </div>
 
@@ -300,17 +445,15 @@ function handleRdpConnect() {
                           : "bg-slate-400"
                       }`}
                     />
+
                     <p className="font-bold text-slate-800">
                       {loadingStatus ? "Chargement..." : dateVerification}
                     </p>
                   </div>
 
-                  <button
-                    onClick={loadStatus}
-                    className="mt-5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-black px-6 py-3 transition"
-                  >
-                    ↻ Actualiser
-                  </button>
+                  <p className="mt-4 text-xs text-slate-400">
+                    Mise a jour automatique chaque 5 secondes.
+                  </p>
                 </div>
               </div>
             </div>
@@ -323,8 +466,9 @@ function handleRdpConnect() {
 
                 <div>
                   <h2 className="text-2xl font-black text-slate-800">
-                    Demande d'acces
+                    Demande d&apos;acces
                   </h2>
+
                   <p className="text-slate-600 mt-1">
                     Votre demande sera envoyee avec le nom :
                     <span className="font-black text-slate-900">
@@ -347,7 +491,8 @@ function handleRdpConnect() {
                 disabled={requestLoading}
                 className="mt-6 w-full rounded-2xl bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-black py-4 shadow-lg shadow-blue-200 transition"
               >
-                🔒 {requestLoading ? "Envoi de la demande..." : "Demander l'acces"}
+                🔒{" "}
+                {requestLoading ? "Envoi de la demande..." : "Demander l'acces"}
               </button>
 
               <p className="text-center text-sm text-slate-500 mt-4">
@@ -366,76 +511,6 @@ function handleRdpConnect() {
                 </div>
               )}
             </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
-              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="text-lg font-black text-slate-800">
-                  Activite recente
-                </h3>
-                <span className="text-blue-700 font-bold text-sm">
-                  Mise a jour auto
-                </span>
-              </div>
-
-              <div className="divide-y divide-slate-100">
-                <div className="px-6 py-4 flex items-start justify-between gap-4">
-                  <div className="flex gap-3">
-                    <span
-                      className={`h-9 w-9 rounded-full flex items-center justify-center ${
-                        isLibre
-                          ? "bg-green-100 text-green-700"
-                          : isOccupe
-                          ? "bg-red-100 text-red-700"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      {isLibre ? "✓" : isOccupe ? "!" : "?"}
-                    </span>
-                    <div>
-                      <p className="font-bold text-slate-800">
-                        Le poste est {etat.toLowerCase()}
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        Etat du poste verifie automatiquement.
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-400">Auto</p>
-                </div>
-
-                <div className="px-6 py-4 flex items-start justify-between gap-4">
-                  <div className="flex gap-3">
-                    <span className="h-9 w-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center">
-                      i
-                    </span>
-                    <div>
-                      <p className="font-bold text-slate-800">
-                        Verification automatique
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        Les informations sont actualisees chaque 5 secondes.
-                      </p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-400">5s</p>
-                </div>
-
-                <div className="px-6 py-4 flex items-start justify-between gap-4">
-                  <div className="flex gap-3">
-                    <span className="h-9 w-9 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center">
-                      📝
-                    </span>
-                    <div>
-                      <p className="font-bold text-slate-800">
-                        Derniere action
-                      </p>
-                      <p className="text-sm text-slate-500">{lastAction}</p>
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-400">—</p>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="space-y-6">
@@ -445,26 +520,28 @@ function handleRdpConnect() {
               </h3>
 
               <div className="mt-5 divide-y divide-slate-100">
-                <div className="py-4 flex items-center justify-between">
+                <div className="py-4 flex items-center justify-between gap-4">
                   <span className="text-slate-500">Sessions actives</span>
                   <span className="text-blue-700 font-black text-xl">
                     {sessions}
                   </span>
                 </div>
 
-                <div className="py-4 flex items-center justify-between">
+                <div className="py-4 flex items-center justify-between gap-4">
                   <span className="text-slate-500">Utilisateur actuel</span>
-                  <span className="font-bold text-slate-800">
-                    {isOccupe ? "Session active" : "Aucun"}
+                  <span className="font-bold text-slate-800 text-right">
+                    {displayedCurrentUser}
                   </span>
                 </div>
 
-                <div className="py-4 flex items-center justify-between">
+                <div className="py-4 flex items-center justify-between gap-4">
                   <span className="text-slate-500">Derniere activite</span>
-                  <span className="font-bold text-slate-800">—</span>
+                  <span className="font-bold text-slate-800 text-right">
+                    {lastActivityText}
+                  </span>
                 </div>
 
-                <div className="py-4 flex items-center justify-between">
+                <div className="py-4 flex items-center justify-between gap-4">
                   <span className="text-slate-500">Derniere verification</span>
                   <span className="font-bold text-slate-800 text-right">
                     {loadingStatus ? "..." : dateVerification}
@@ -478,14 +555,17 @@ function handleRdpConnect() {
                 <span className="h-11 w-11 rounded-full bg-blue-700 text-white flex items-center justify-center font-black">
                   i
                 </span>
+
                 <div>
                   <h3 className="text-xl font-black text-blue-950">
                     Acces exclusif
                   </h3>
+
                   <p className="text-blue-900/80 mt-3 leading-7">
                     Pour des raisons de securite et de performance, une seule
                     personne peut acceder au poste principal a la fois.
                   </p>
+
                   <p className="text-blue-900/80 mt-3 leading-7">
                     Veuillez attendre la liberation du poste ou reessayer plus
                     tard.
@@ -516,6 +596,7 @@ function handleRdpConnect() {
                   <h3 className="text-xl font-black text-slate-800">
                     {requestAuthorized ? "Acces autorise" : "Connexion RDP"}
                   </h3>
+
                   <p className="text-slate-600 mt-2">
                     {requestAuthorized
                       ? "Vous pouvez maintenant vous connecter au poste principal."
