@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 import fs from "fs";
 import path from "path";
-import { exec } from "child_process";
+import { execFile } from "child_process";
 
 type StatusData = {
   etat_poste: string;
@@ -24,8 +24,7 @@ function readStatusFile(): StatusData {
   const content = fs.readFileSync(filePath, "utf-8");
 
   const etatMatch =
-    content.match(/etat_poste=(.*)/i) ||
-    content.match(/EtatPoste=(.*)/i);
+    content.match(/etat_poste=(.*)/i) || content.match(/EtatPoste=(.*)/i);
 
   const sessionsMatch =
     content.match(/nombre_sessions_actives=(.*)/i) ||
@@ -81,24 +80,44 @@ function isPosteOccupe(status: StatusData): boolean {
   );
 }
 
-function notifyActiveRdpUser() {
-  const command =
-    'powershell.exe -ExecutionPolicy Bypass -File "C:\\script_RDP\\notify_rdp_user.ps1"';
+function notifyActiveRdpUser(requesterName: string) {
+  const scriptPath = "C:\\script_RDP\\notify_rdp_user.ps1";
 
-  exec(command, (error, stdout, stderr) => {
-    if (error) {
-      console.error("Erreur notification RDP:", error.message);
-      return;
-    }
+  if (!fs.existsSync(scriptPath)) {
+    console.error("Script notification introuvable:", scriptPath);
+    return;
+  }
 
-    if (stderr) {
-      console.error("Notification RDP stderr:", stderr);
-    }
+  execFile(
+    "powershell.exe",
+    [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      scriptPath,
+      "-RequesterName",
+      requesterName,
+    ],
+    {
+      windowsHide: true,
+      timeout: 10000,
+    },
+    (error, stdout, stderr) => {
+      if (error) {
+        console.error("Erreur notification RDP:", error.message);
+        return;
+      }
 
-    if (stdout) {
-      console.log("Notification RDP stdout:", stdout);
+      if (stderr) {
+        console.error("Notification RDP stderr:", stderr);
+      }
+
+      if (stdout) {
+        console.log("Notification RDP stdout:", stdout);
+      }
     }
-  });
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -106,7 +125,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
 
     const utilisateur = normalizeUser(
-      body.utilisateur || body.Utilisateur || body.user || body.name
+      body.utilisateur || body.Utilisateur || body.user || body.name || body.nom
     );
 
     const pcName =
@@ -130,17 +149,9 @@ export async function POST(request: NextRequest) {
         (pc_name, ip, request_time, status, reason, Utilisateur)
         VALUES (?, ?, ?, ?, ?, ?)
         `
-      ).run(
-        pcName,
-        ip,
-        requestTime,
-        "refuse",
-        "poste occupe",
-        utilisateur
-      );
+      ).run(pcName, ip, requestTime, "refuse", "poste occupe", utilisateur);
 
-      // envoyer message a l'utilisateur RDP actif
-      notifyActiveRdpUser();
+      notifyActiveRdpUser(utilisateur);
 
       return NextResponse.json({
         allowed: false,
@@ -158,14 +169,7 @@ export async function POST(request: NextRequest) {
       (pc_name, ip, request_time, status, reason, Utilisateur)
       VALUES (?, ?, ?, ?, ?, ?)
       `
-    ).run(
-      pcName,
-      ip,
-      requestTime,
-      "autorise",
-      "poste libre",
-      utilisateur
-    );
+    ).run(pcName, ip, requestTime, "autorise", "poste libre", utilisateur);
 
     return NextResponse.json({
       allowed: true,

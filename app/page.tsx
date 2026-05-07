@@ -77,14 +77,32 @@ function isValidUserName(value: string) {
   return true;
 }
 
-function isActiveAction(action: string) {
-  const value = String(action || "").toLowerCase();
+function isRealRdpConnectionEvent(item: HistoryItem) {
+  const action = String(item.action || "").toLowerCase();
+  const nomSession = String(item.nomSession || "").toLowerCase();
 
-  if (value.includes("demande autorisee")) return true;
-  if (value.includes("reconnexion")) return true;
-  if (value.includes("connexion") && !value.includes("deconnexion")) return true;
+  const text = `${action} ${nomSession}`;
+
+  if (text.includes("demande")) return false;
+  if (text.includes("refuse")) return false;
+  if (text.includes("autorise")) return false;
+  if (text.includes("deconnexion")) return false;
+  if (text.includes("deconnectee")) return false;
+
+  if (text.includes("reconnexion")) return true;
+  if (text.includes("connexion")) return true;
 
   return false;
+}
+
+function buildRefusedMessage(currentUser: string) {
+  const user = String(currentUser || "").trim();
+
+  if (user && user !== "Aucun" && user !== "Session active") {
+    return `Acces refuse : le poste principal est actuellement utilise par ${user}. Veuillez le contacter si votre demande est urgente.`;
+  }
+
+  return "Acces refuse : le poste principal est actuellement occupe. Veuillez contacter l'utilisateur RDP actif si votre demande est urgente.";
 }
 
 export default function EmployePage() {
@@ -129,9 +147,9 @@ export default function EmployePage() {
   }, [router]);
 
   async function loadAllData() {
-    await loadStatus();
-    await loadHistoryInfos();
-    await loadCurrentRdpUser();
+    const statusData = await loadStatus();
+    await loadHistoryInfos(statusData);
+    await loadCurrentRdpUser(statusData);
   }
 
   async function loadStatus() {
@@ -144,17 +162,20 @@ export default function EmployePage() {
 
       const data = await response.json();
       setStatus(data);
+
+      return data as StatusData;
     } catch (error) {
       console.error("Erreur chargement statut:", error);
       setStatus(null);
+      return null;
     } finally {
       setLoadingStatus(false);
     }
   }
 
-  async function loadHistoryInfos() {
+  async function loadHistoryInfos(statusData?: StatusData | null) {
     try {
-      const response = await fetch("/api/history?page=1&pageSize=20&sort=recent", {
+      const response = await fetch("/api/history?page=1&pageSize=30&sort=recent", {
         cache: "no-store",
       });
 
@@ -184,25 +205,15 @@ export default function EmployePage() {
         setLastActivityText("Aucune activite recente");
       }
 
-      const authorizedItem = items.find((item) => {
-        const action = String(item.action || "").toLowerCase();
-
-        return (
-          isValidUserName(item.utilisateur) &&
-          action.includes("demande autorisee")
-        );
+      const latestRdpConnection = items.find((item) => {
+        return isValidUserName(item.utilisateur) && isRealRdpConnectionEvent(item);
       });
 
-      const activeItem = items.find((item) => {
-        const action = item.action || item.nomSession || "";
-        return isValidUserName(item.utilisateur) && isActiveAction(action);
-      });
+      const currentSessions = getSessions(statusData || status);
 
-      const selectedUser = authorizedItem || activeItem;
-
-      if (selectedUser) {
-        setCurrentUserText(selectedUser.utilisateur);
-      } else if (sessions > 0) {
+      if (latestRdpConnection && currentSessions > 0) {
+        setCurrentUserText(latestRdpConnection.utilisateur);
+      } else if (currentSessions > 0) {
         setCurrentUserText("Session active");
       } else {
         setCurrentUserText("Aucun");
@@ -211,7 +222,9 @@ export default function EmployePage() {
       console.error("Erreur chargement historique recent:", error);
       setLastActivityText("Non disponible");
 
-      if (sessions > 0) {
+      const currentSessions = getSessions(statusData || status);
+
+      if (currentSessions > 0) {
         setCurrentUserText("Session active");
       } else {
         setCurrentUserText("Aucun");
@@ -219,7 +232,7 @@ export default function EmployePage() {
     }
   }
 
-  async function loadCurrentRdpUser() {
+  async function loadCurrentRdpUser(statusData?: StatusData | null) {
     try {
       const response = await fetch("/api/current-rdp-user", {
         cache: "no-store",
@@ -232,9 +245,10 @@ export default function EmployePage() {
         .toLowerCase();
 
       /*
+        Important:
         autocad_user = compte Windows/RDP technique.
         On ne l'affiche pas comme employe actuel.
-        L'utilisateur reel vient de l'historique des demandes autorisees.
+        L'utilisateur actuel affiche doit rester celui detecte via les evenements RDP de l'application.
       */
       if (
         data?.session_active &&
@@ -244,7 +258,9 @@ export default function EmployePage() {
         setCurrentUserText(data.utilisateur_actuel);
       }
 
-      if (!data?.session_active && sessions === 0) {
+      const currentSessions = getSessions(statusData || status);
+
+      if (!data?.session_active && currentSessions === 0) {
         setCurrentUserText("Aucun");
       }
     } catch (error) {
@@ -257,6 +273,8 @@ export default function EmployePage() {
       setRequestLoading(true);
       setMessage("");
       setRequestAuthorized(false);
+
+      const occupantBeforeRequest = isLibre ? "Aucun" : currentUserText;
 
       const response = await fetch("/api/request-access", {
         method: "POST",
@@ -282,18 +300,12 @@ export default function EmployePage() {
 
       setRequestAuthorized(authorized);
 
-      if (text) {
-        setMessage(text);
-      } else if (authorized) {
+      if (authorized) {
         setMessage(
           "Acces autorise. Vous pouvez maintenant vous connecter au poste principal."
         );
       } else {
-        setMessage("Acces refuse. Le poste principal est actuellement occupe.");
-      }
-
-      if (authorized) {
-        setCurrentUserText(employeName);
+        setMessage(buildRefusedMessage(occupantBeforeRequest));
       }
 
       await loadAllData();
