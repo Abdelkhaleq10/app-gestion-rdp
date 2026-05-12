@@ -1,18 +1,25 @@
+import type { Metadata } from "next";
+import { Rubik } from "next/font/google";
 import "./globals.css";
 
-export const metadata = {
+const rubik = Rubik({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+});
+
+export const metadata: Metadata = {
   title: "Gestion d'acces RDP",
-  description: "Application web de gestion d'acces au PC principal",
+  description: "Application web de gestion d'acces RDP",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="fr">
-      <body>{children}</body>
+      <body className={rubik.className}>{children}</body>
     </html>
   );
 }

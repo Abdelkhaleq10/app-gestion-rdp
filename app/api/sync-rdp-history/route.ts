@@ -114,8 +114,16 @@ function isTechnicalOrBadUser(value: string) {
   if (!user) return true;
   if (user === "n/a") return true;
   if (user === "-") return true;
+
+  // Comptes techniques / locaux
   if (user === "autocad_user") return true;
   if (user === "s.cotti") return true;
+
+  // Parsing ghalat men Windows logs
+  if (user.startsWith("domaine")) return true;
+  if (user.startsWith("domain")) return true;
+
+  // Direct access non identifie
   if (user.includes("acces direct non identifie")) return true;
 
   return false;

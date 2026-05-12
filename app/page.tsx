@@ -2,6 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  CheckCircle2,
+  Clock3,
+  KeyRound,
+  LogOut,
+  Monitor,
+  MonitorCheck,
+  MonitorX,
+  PlugZap,
+  ShieldCheck,
+  UserRound,
+  AlertCircle,
+} from "lucide-react";
 
 type StatusData = {
   etat_poste?: string;
@@ -16,34 +29,30 @@ type StatusData = {
 
 type RequestResult = {
   success?: boolean;
-  authorized?: boolean;
-  autorise?: boolean;
   message?: string;
   status?: string;
+  statusLabel?: string;
+  workstationStatus?: string;
+  currentRdpUser?: string;
 };
 
-type HistoryItem = {
-  id: number;
-  date: string;
-  heure: string;
-  utilisateur: string;
-  nomSession: string;
-  ip: string;
-  typeIP: string;
-  action: string;
-};
+type RequestState = "none" | "authorized" | "waiting" | "rejected" | "error";
+
+function normalize(value: unknown) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
 
 function getEtatLabel(status: StatusData | null) {
-  const raw =
-    status?.etat_poste ||
-    status?.etatPoste ||
-    status?.status ||
-    "Inconnu";
-
-  const value = String(raw).toLowerCase();
+  const value = normalize(
+    status?.etat_poste || status?.etatPoste || status?.status || "Inconnu"
+  );
 
   if (value.includes("libre")) return "Libre";
-  if (value.includes("occupe") || value.includes("occupé")) return "Occupe";
+  if (value.includes("occupe")) return "Occupe";
 
   return "Inconnu";
 }
@@ -58,100 +67,48 @@ function getSessions(status: StatusData | null) {
 }
 
 function getDateVerification(status: StatusData | null) {
+  return status?.date_verification || status?.dateVerification || "Non disponible";
+}
+
+function getInitials(name: string) {
+  const parts = String(name || "")
+    .trim()
+    .split(" ")
+    .filter(Boolean);
+
+  if (parts.length === 0) return "NA";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
+
+function isAuthorizedStatus(value: unknown) {
+  const status = normalize(value);
   return (
-    status?.date_verification ||
-    status?.dateVerification ||
-    "Non disponible"
+    status === "authorized" ||
+    status === "autorise" ||
+    status === "autorisee" ||
+    status.includes("autor")
   );
 }
 
-function isValidUserName(value: string) {
-  const user = String(value || "").trim().toLowerCase();
-
-  if (!user) return false;
-  if (user === "n/a") return false;
-  if (user === "-") return false;
-  if (user.includes("acces direct non identifie")) return false;
-  if (user === "autocad_user") return false;
-
-  return true;
-}
-
-function getHistoryItems(data: any): HistoryItem[] {
-  return Array.isArray(data.items)
-    ? data.items
-    : Array.isArray(data.data)
-    ? data.data
-    : Array.isArray(data.history)
-    ? data.history
-    : Array.isArray(data.events)
-    ? data.events
-    : Array.isArray(data.rows)
-    ? data.rows
-    : [];
-}
-
-function isAuthorizedRequest(item: HistoryItem) {
-  const action = String(item.action || "").toLowerCase();
-  const nomSession = String(item.nomSession || "").toLowerCase();
-  const text = `${action} ${nomSession}`;
-
+function isWaitingStatus(value: unknown) {
+  const status = normalize(value);
   return (
-    isValidUserName(item.utilisateur) &&
-    text.includes("demande") &&
-    text.includes("autorisee")
+    status === "waiting_current_user" ||
+    status === "pending" ||
+    status.includes("attente")
   );
 }
 
-function isRealRdpEvent(item: HistoryItem) {
-  const action = String(item.action || "").toLowerCase();
-  const nomSession = String(item.nomSession || "").toLowerCase();
-  const text = `${action} ${nomSession}`;
-
-  if (!isValidUserName(item.utilisateur)) return false;
-
-  if (text.includes("demande")) return false;
-  if (text.includes("refuse")) return false;
-  if (text.includes("autorise")) return false;
-  if (text.includes("deconnexion")) return false;
-  if (text.includes("deconnectee")) return false;
-
-  if (text.includes("reconnexion")) return true;
-  if (text.includes("connexion")) return true;
-
-  return false;
-}
-
-function findCurrentEmployee(items: HistoryItem[]) {
-  /*
-    Logique s7i7a:
-    - ila poste occupe, utilisateur actuel = akher "Demande autorisee"
-    - "Demande refusee" ma khas-hach tbedel utilisateur actuel
-    - Connexion/Reconnexion ghir fallback ila mal9inach demande autorisee
-  */
-  const latestAuthorized = items.find(isAuthorizedRequest);
-
-  if (latestAuthorized) {
-    return latestAuthorized.utilisateur;
-  }
-
-  const latestRdpEvent = items.find(isRealRdpEvent);
-
-  if (latestRdpEvent) {
-    return latestRdpEvent.utilisateur;
-  }
-
-  return "Session active";
-}
-
-function buildRefusedMessage(currentUser: string) {
-  const user = String(currentUser || "").trim();
-
-  if (user && user !== "Aucun" && user !== "Session active") {
-    return `Acces refuse : le poste principal est actuellement utilise par ${user}. Veuillez le contacter si votre demande est urgente.`;
-  }
-
-  return "Acces refuse : le poste principal est actuellement occupe. Veuillez contacter l'utilisateur RDP actif si votre demande est urgente.";
+function isRejectedStatus(value: unknown) {
+  const status = normalize(value);
+  return (
+    status === "rejected" ||
+    status === "refuse" ||
+    status === "refusee" ||
+    status.includes("refus")
+  );
 }
 
 export default function EmployePage() {
@@ -160,15 +117,12 @@ export default function EmployePage() {
   const [employeName, setEmployeName] = useState("");
   const [status, setStatus] = useState<StatusData | null>(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
-
   const [requestLoading, setRequestLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [requestAuthorized, setRequestAuthorized] = useState(false);
-
-  const [lastActivityText, setLastActivityText] = useState(
-    "Aucune activite recente"
-  );
+  const [requestState, setRequestState] = useState<RequestState>("none");
+  const [lastActivityText, setLastActivityText] = useState("Aucune activite recente");
   const [currentUserText, setCurrentUserText] = useState("Aucun");
+  const [pulse, setPulse] = useState(false);
 
   const etat = getEtatLabel(status);
   const sessions = getSessions(status);
@@ -176,6 +130,11 @@ export default function EmployePage() {
 
   const isLibre = etat === "Libre";
   const isOccupe = etat === "Occupe";
+
+  const requestAuthorized = requestState === "authorized";
+  const requestWaiting = requestState === "waiting";
+  const requestRejected = requestState === "rejected";
+  const displayedCurrentUser = isLibre ? "Aucun" : currentUserText;
 
   useEffect(() => {
     const savedName = localStorage.getItem("employe_nom");
@@ -189,15 +148,17 @@ export default function EmployePage() {
     loadAllData();
 
     const interval = setInterval(() => {
+      setPulse(true);
+      setTimeout(() => setPulse(false), 600);
       loadAllData();
     }, 5000);
 
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [router]);
 
   async function loadAllData() {
     const statusData = await loadStatus();
-    await loadHistoryInfos(statusData);
     await loadCurrentRdpUser(statusData);
   }
 
@@ -205,13 +166,10 @@ export default function EmployePage() {
     try {
       setLoadingStatus(true);
 
-      const response = await fetch("/api/status", {
-        cache: "no-store",
-      });
-
+      const response = await fetch("/api/status", { cache: "no-store" });
       const data = await response.json();
-      setStatus(data);
 
+      setStatus(data);
       return data as StatusData;
     } catch (error) {
       console.error("Erreur chargement statut:", error);
@@ -222,99 +180,28 @@ export default function EmployePage() {
     }
   }
 
-  async function loadHistoryInfos(statusData?: StatusData | null) {
-    try {
-      const response = await fetch("/api/history?page=1&pageSize=50&sort=recent", {
-        cache: "no-store",
-      });
-
-      const data = await response.json();
-      const items = getHistoryItems(data);
-
-      if (items.length > 0) {
-        const last = items[0];
-
-        setLastActivityText(
-          `${last.action || last.nomSession || "Activite"} - ${
-            last.date || "-"
-          } ${last.heure || ""}`
-        );
-      } else {
-        setLastActivityText("Aucune activite recente");
-      }
-
-      const currentSessions = getSessions(statusData || status);
-
-      if (currentSessions > 0) {
-        setCurrentUserText(findCurrentEmployee(items));
-      } else {
-        setCurrentUserText("Aucun");
-      }
-    } catch (error) {
-      console.error("Erreur chargement historique recent:", error);
-      setLastActivityText("Non disponible");
-
-      const currentSessions = getSessions(statusData || status);
-
-      if (currentSessions > 0) {
-        setCurrentUserText("Session active");
-      } else {
-        setCurrentUserText("Aucun");
-      }
-    }
-  }
-
-  async function getOccupantBeforeRequest() {
-    try {
-      const statusResponse = await fetch("/api/status", {
-        cache: "no-store",
-      });
-
-      const statusData = (await statusResponse.json()) as StatusData;
-      const currentSessions = getSessions(statusData);
-      const currentEtat = getEtatLabel(statusData);
-
-      if (currentEtat === "Libre" || currentSessions === 0) {
-        return "Aucun";
-      }
-
-      const historyResponse = await fetch(
-        "/api/history?page=1&pageSize=50&sort=recent",
-        {
-          cache: "no-store",
-        }
-      );
-
-      const historyData = await historyResponse.json();
-      const items = getHistoryItems(historyData);
-
-      return findCurrentEmployee(items);
-    } catch (error) {
-      console.error("Erreur detection utilisateur actuel:", error);
-      return currentUserText || "Session active";
-    }
-  }
-
   async function loadCurrentRdpUser(statusData?: StatusData | null) {
     try {
-      const response = await fetch("/api/current-rdp-user", {
-        cache: "no-store",
-      });
-
+      const response = await fetch("/api/current-rdp-user", { cache: "no-store" });
       const data = await response.json();
 
-      /*
-        current-rdp-user kay3tina wach kayna session active.
-        Mais "autocad_user" compte technique, ma khasouch yban comme employe.
-        Smiya dyal employe katji men akher Demande autorisee.
-      */
-      const currentSessions = getSessions(statusData || status);
-
-      if (!data?.session_active && currentSessions === 0) {
+      if (!data?.session_active || getSessions(statusData || status) === 0) {
         setCurrentUserText("Aucun");
+        return;
+      }
+
+      if (data?.utilisateur) {
+        setCurrentUserText(data.utilisateur);
+      } else {
+        setCurrentUserText("Session active");
+      }
+
+      if (data?.derniere_activite) {
+        setLastActivityText(data.derniere_activite);
       }
     } catch (error) {
-      console.error("Erreur chargement utilisateur RDP actuel:", error);
+      console.error("Erreur chargement utilisateur RDP:", error);
+      setCurrentUserText(getSessions(statusData || status) > 0 ? "Session active" : "Aucun");
     }
   }
 
@@ -322,9 +209,7 @@ export default function EmployePage() {
     try {
       setRequestLoading(true);
       setMessage("");
-      setRequestAuthorized(false);
-
-      const occupantBeforeRequest = await getOccupantBeforeRequest();
+      setRequestState("none");
 
       const response = await fetch("/api/request-access", {
         method: "POST",
@@ -332,37 +217,43 @@ export default function EmployePage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          utilisateur: employeName,
-          nom: employeName,
-          user: employeName,
+          fullName: employeName,
+          pcName: "PC employe",
+          priority: "normal",
+          reason: "Demande d'acces",
+          message: "",
         }),
       });
 
       const result: RequestResult = await response.json();
 
-      const text = result.message || "";
+      if (!response.ok || result.success === false) {
+        setRequestState("error");
+        setMessage(result.message || "Erreur lors de l'envoi de la demande.");
+        return;
+      }
 
-      const authorized =
-        result.authorized === true ||
-        result.autorise === true ||
-        String(result.status || "").toLowerCase().includes("autor") ||
-        text.toLowerCase().includes("autor");
-
-      setRequestAuthorized(authorized);
-
-      if (authorized) {
+      if (isAuthorizedStatus(result.status)) {
+        setRequestState("authorized");
+        setMessage("Acces autorise. Vous pouvez maintenant vous connecter au poste principal.");
+      } else if (isWaitingStatus(result.status)) {
+        setRequestState("waiting");
         setMessage(
-          "Acces autorise. Vous pouvez maintenant vous connecter au poste principal."
+          "Demande en attente. Une notification a ete envoyee a l'utilisateur actuellement connecte."
         );
+      } else if (isRejectedStatus(result.status)) {
+        setRequestState("rejected");
+        setMessage("Demande refusee par l'utilisateur actuellement connecte.");
       } else {
-        setMessage(buildRefusedMessage(occupantBeforeRequest));
+        setRequestState("waiting");
+        setMessage(result.message || "Votre demande est en attente de verification.");
       }
 
       await loadAllData();
     } catch (error) {
       console.error("Erreur demande acces:", error);
+      setRequestState("error");
       setMessage("Erreur lors de l'envoi de la demande d'acces.");
-      setRequestAuthorized(false);
     } finally {
       setRequestLoading(false);
     }
@@ -378,317 +269,288 @@ export default function EmployePage() {
     window.location.href = "/api/rdp-file";
   }
 
-  const displayedCurrentUser = isLibre ? "Aucun" : currentUserText;
-
   if (!employeName) {
     return (
-      <main className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <p className="text-slate-600">Chargement...</p>
+      <main className="flex min-h-screen items-center justify-center bg-[#f4f7fb]">
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-10 animate-spin rounded-full border-4 border-blue-900 border-t-transparent" />
+          <p className="text-sm font-semibold text-blue-950">Chargement...</p>
+        </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100">
-      <header className="bg-blue-950 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-6 py-4 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl border border-white/20 bg-white/10 flex items-center justify-center text-xl">
-              🖥️
-            </div>
-
-            <div>
-              <p className="font-bold text-lg">SRM-SM</p>
-              <p className="text-xs text-blue-200">Acces au poste principal</p>
+    <main className="min-h-screen bg-[#f4f7fb] text-slate-900">
+      <header className="border-b border-white/10 bg-[#0b1f3f] text-white">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-4 px-5 py-4 lg:min-h-[124px] lg:grid-cols-[240px_1fr_auto] lg:items-center lg:px-6">
+          <div className="flex justify-center lg:justify-start">
+            <div className="flex h-24 w-56 max-w-full items-center justify-center lg:justify-start">
+              <img
+                src="/srm-sm-logo-white-text.png"
+                alt="SRM-SM"
+                className="h-24 w-auto max-w-full object-contain brightness-0 invert"
+              />
             </div>
           </div>
 
-          <div className="text-center">
-            <h1 className="text-xl md:text-2xl font-black">
-              Gestion d&apos;acces RDP
+          <div className="text-center lg:px-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-200">
+              Application interne
+            </p>
+            <h1 className="mt-1 text-2xl font-black tracking-normal">
+              Gestion d'acces RDP
             </h1>
+            <p className="mt-1 text-sm text-blue-100">Espace employe</p>
           </div>
 
-          <div className="flex items-center justify-start md:justify-end gap-3">
-            <div className="hidden sm:flex h-10 w-10 rounded-full bg-blue-700 items-center justify-center font-black">
-              EM
-            </div>
-
-            <div className="text-left md:text-right">
-              <p className="text-xs text-blue-200">Espace employe</p>
-              <p className="font-bold leading-tight">{employeName}</p>
+          <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-end">
+            <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/10 px-3 py-2">
+              <div className="flex size-9 items-center justify-center rounded-md bg-[#f0b23f] text-sm font-black text-blue-950">
+                {getInitials(employeName)}
+              </div>
+              <div>
+                <p className="text-xs text-blue-200">Connecte</p>
+                <p className="text-sm font-bold">{employeName}</p>
+              </div>
             </div>
 
             <button
               onClick={handleLogout}
-              className="rounded-xl bg-white/10 hover:bg-white/20 px-4 py-2 font-semibold transition"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold transition hover:bg-white/15"
             >
-              Logout
+              <LogOut className="size-4" />
+              Deconnexion
             </button>
           </div>
         </div>
       </header>
 
-      <section className="max-w-7xl mx-auto px-6 py-8">
-        <div className="grid grid-cols-1 xl:grid-cols-[2fr_1.1fr] gap-6">
+      <section className="mx-auto max-w-7xl space-y-6 px-5 py-6 lg:px-6">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
           <div className="space-y-6">
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6 md:p-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                <div className="flex items-center gap-5">
-                  <div
-                    className={`h-28 w-28 rounded-full flex items-center justify-center text-5xl ${
-                      isLibre
-                        ? "bg-green-100 text-green-700"
-                        : isOccupe
-                        ? "bg-red-100 text-red-700"
-                        : "bg-slate-100 text-slate-600"
-                    }`}
-                  >
-                    {isLibre ? "✓" : isOccupe ? "!" : "?"}
-                  </div>
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div
+                className={`h-1 ${
+                  isLibre ? "bg-emerald-500" : isOccupe ? "bg-red-500" : "bg-slate-300"
+                }`}
+              />
 
-                  <div>
-                    <p className="text-sm uppercase tracking-[0.2em] text-slate-400 font-bold">
-                      Etat du poste principal
-                    </p>
-
-                    <div className="flex flex-wrap items-center gap-3 mt-2">
-                      <h2
-                        className={`text-4xl font-black ${
-                          isLibre
-                            ? "text-green-700"
-                            : isOccupe
-                            ? "text-red-700"
-                            : "text-slate-700"
-                        }`}
-                      >
-                        Poste {etat.toLowerCase()}
-                      </h2>
-
-                      <span
-                        className={`px-3 py-1 rounded-full text-sm font-bold ${
-                          isLibre
-                            ? "bg-green-100 text-green-700"
-                            : isOccupe
-                            ? "bg-red-100 text-red-700"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {isLibre
-                          ? "Disponible"
+              <div className="p-6">
+                <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-start gap-4">
+                    <div
+                      className={`flex size-16 shrink-0 items-center justify-center rounded-lg ${
+                        isLibre
+                          ? "bg-emerald-50 text-emerald-700"
                           : isOccupe
-                          ? "Occupe"
-                          : "Inconnu"}
-                      </span>
+                          ? "bg-red-50 text-red-700"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {isLibre ? (
+                        <MonitorCheck className="size-8" />
+                      ) : isOccupe ? (
+                        <MonitorX className="size-8" />
+                      ) : (
+                        <Monitor className="size-8" />
+                      )}
                     </div>
 
-                    <p className="text-slate-600 mt-3">
-                      {isLibre
-                        ? "Le poste principal est actuellement libre et pret a etre utilise."
-                        : isOccupe
-                        ? "Le poste principal est actuellement occupe par une session RDP."
-                        : "Le statut du poste principal n'est pas encore disponible."}
-                    </p>
-                  </div>
-                </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                        Etat du poste principal
+                      </p>
 
-                <div className="lg:border-l border-slate-200 lg:pl-8 min-w-[230px]">
-                  <p className="text-sm font-semibold text-slate-500">
-                    Derniere verification
-                  </p>
+                      <h2
+                        className={`mt-1 text-3xl font-black ${
+                          isLibre ? "text-emerald-700" : isOccupe ? "text-red-700" : "text-slate-700"
+                        }`}
+                      >
+                        Poste {etat === "Libre" ? "libre" : etat === "Occupe" ? "occupe" : "inconnu"}
+                      </h2>
 
-                  <div className="flex items-center gap-2 mt-2">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${
-                        isLibre
-                          ? "bg-green-500"
+                      <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+                        {isLibre
+                          ? "Le poste principal est libre et pret a etre utilise."
                           : isOccupe
-                          ? "bg-red-500"
-                          : "bg-slate-400"
-                      }`}
-                    />
-
-                    <p className="font-bold text-slate-800">
-                      {loadingStatus ? "Chargement..." : dateVerification}
-                    </p>
+                          ? "Le poste principal est actuellement occupe par une session RDP."
+                          : "Le statut du poste principal reste indisponible."}
+                      </p>
+                    </div>
                   </div>
 
-                  <p className="mt-4 text-xs text-slate-400">
-                    Mise a jour automatique chaque 5 secondes.
-                  </p>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                      Derniere verification
+                    </p>
+
+                    <div className="mt-2 flex items-center gap-2">
+                      <span
+                        className={`size-2.5 rounded-full transition-transform ${
+                          pulse ? "scale-150" : "scale-100"
+                        } ${isLibre ? "bg-emerald-500" : isOccupe ? "bg-red-500" : "bg-slate-400"}`}
+                      />
+
+                      <p className="text-sm font-bold text-slate-800">
+                        {loadingStatus ? "Actualisation..." : dateVerification}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6 md:p-8">
-              <div className="flex items-center gap-4">
-                <div className="h-14 w-14 rounded-2xl bg-blue-700 text-white flex items-center justify-center font-black text-xl">
-                  👤
+            <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="mb-5 flex items-center gap-4">
+                <div className="flex size-12 items-center justify-center rounded-lg bg-blue-950 text-white">
+                  <KeyRound className="size-6" />
                 </div>
 
                 <div>
-                  <h2 className="text-2xl font-black text-slate-800">
-                    Demande d&apos;acces
-                  </h2>
-
-                  <p className="text-slate-600 mt-1">
-                    Votre demande sera envoyee avec le nom :
-                    <span className="font-black text-slate-900">
-                      {" "}
-                      {employeName}
-                    </span>
+                  <h2 className="text-xl font-black text-slate-900">Demande d'acces</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Demande envoyee sous le nom :{" "}
+                    <span className="font-bold text-blue-950">{employeName}</span>
                   </p>
                 </div>
               </div>
 
-              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-slate-400 font-bold">
+              <div className="mb-5 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
                   Nom complet
                 </p>
-                <p className="text-slate-900 font-bold mt-1">{employeName}</p>
+                <p className="mt-1 font-semibold text-slate-800">{employeName}</p>
               </div>
 
               <button
                 onClick={handleRequestAccess}
                 disabled={requestLoading}
-                className="mt-6 w-full rounded-2xl bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white font-black py-4 shadow-lg shadow-blue-200 transition"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-700 py-3.5 font-black text-white shadow-sm transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                🔒{" "}
+                <ShieldCheck className="size-5" />
                 {requestLoading ? "Envoi de la demande..." : "Demander l'acces"}
               </button>
 
-              <p className="text-center text-sm text-slate-500 mt-4">
-                Votre demande sera enregistree et visible par le responsable.
-              </p>
-
               {message && (
                 <div
-                  className={`mt-5 rounded-2xl border p-4 font-semibold ${
+                  className={`mt-5 flex items-start gap-3 rounded-lg border px-4 py-3 text-sm font-semibold ${
                     requestAuthorized
-                      ? "bg-green-50 border-green-200 text-green-800"
-                      : "bg-red-50 border-red-200 text-red-800"
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                      : requestWaiting
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : requestRejected
+                      ? "border-red-200 bg-red-50 text-red-800"
+                      : "border-red-200 bg-red-50 text-red-800"
                   }`}
                 >
-                  {message}
+                  {requestAuthorized ? (
+                    <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+                  ) : (
+                    <AlertCircle className="mt-0.5 size-5 shrink-0" />
+                  )}
+
+                  <p>{message}</p>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <h3 className="text-xl font-black text-slate-800">
-                Etat du poste principal
-              </h3>
+          <div className="space-y-5">
+            <div className="rounded-lg border border-slate-200 bg-white shadow-sm">
+              <div className="border-b border-slate-100 px-5 py-4">
+                <h3 className="font-black text-slate-900">Etat en direct</h3>
+              </div>
 
-              <div className="mt-5 divide-y divide-slate-100">
-                <div className="py-4 flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Sessions actives</span>
-                  <span className="text-blue-700 font-black text-xl">
-                    {sessions}
-                  </span>
-                </div>
-
-                <div className="py-4 flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Utilisateur actuel</span>
-                  <span className="font-bold text-slate-800 text-right">
-                    {displayedCurrentUser}
-                  </span>
-                </div>
-
-                <div className="py-4 flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Derniere activite</span>
-                  <span className="font-bold text-slate-800 text-right">
-                    {lastActivityText}
-                  </span>
-                </div>
-
-                <div className="py-4 flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Derniere verification</span>
-                  <span className="font-bold text-slate-800 text-right">
-                    {loadingStatus ? "..." : dateVerification}
-                  </span>
-                </div>
+              <div className="divide-y divide-slate-100">
+                {[
+                  ["Sessions actives", sessions],
+                  ["Utilisateur actuel", displayedCurrentUser],
+                  ["Derniere activite", lastActivityText],
+                  ["Verification", loadingStatus ? "..." : dateVerification],
+                ].map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="flex items-center justify-between gap-4 px-5 py-3.5"
+                  >
+                    <span className="text-sm text-slate-500">{label}</span>
+                    <span className="max-w-[180px] text-right text-sm font-bold text-slate-800">
+                      {value}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="bg-blue-50 rounded-3xl border border-blue-100 p-6">
+            <div className="rounded-lg border border-blue-100 bg-blue-50 p-5">
               <div className="flex items-start gap-3">
-                <span className="h-11 w-11 rounded-full bg-blue-700 text-white flex items-center justify-center font-black">
-                  i
-                </span>
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-blue-700 text-white">
+                  <UserRound className="size-5" />
+                </div>
 
                 <div>
-                  <h3 className="text-xl font-black text-blue-950">
-                    Acces exclusif
-                  </h3>
-
-                  <p className="text-blue-900/80 mt-3 leading-7">
-                    Pour des raisons de securite et de performance, une seule
-                    personne peut acceder au poste principal a la fois.
-                  </p>
-
-                  <p className="text-blue-900/80 mt-3 leading-7">
-                    Veuillez attendre la liberation du poste ou reessayer plus
-                    tard.
+                  <h3 className="font-black text-blue-950">Acces exclusif</h3>
+                  <p className="mt-2 text-sm leading-6 text-blue-900/80">
+                    Une seule personne peut utiliser le poste principal a la fois. Si le poste est
+                    occupe, la nouvelle demande sera mise en attente.
                   </p>
                 </div>
               </div>
             </div>
 
             <div
-              className={`rounded-3xl shadow-lg border p-6 ${
-                requestAuthorized
-                  ? "bg-green-50 border-green-200"
-                  : "bg-white border-slate-100"
+              className={`overflow-hidden rounded-lg border bg-white shadow-sm ${
+                requestAuthorized ? "border-emerald-200" : "border-slate-200"
               }`}
             >
-              <div className="flex items-start gap-4">
-                <div
-                  className={`h-16 w-16 rounded-full flex items-center justify-center text-3xl ${
+              <div className={`h-1 ${requestAuthorized ? "bg-emerald-500" : "bg-slate-200"}`} />
+
+              <div className="p-5">
+                <div className="mb-4 flex items-center gap-3">
+                  <div
+                    className={`flex size-11 items-center justify-center rounded-lg ${
+                      requestAuthorized
+                        ? "bg-emerald-50 text-emerald-700"
+                        : "bg-slate-100 text-slate-400"
+                    }`}
+                  >
+                    <PlugZap className="size-6" />
+                  </div>
+
+                  <div>
+                    <h3 className="font-black text-slate-900">
+                      {requestAuthorized ? "Acces autorise" : "Connexion RDP"}
+                    </h3>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                      {requestAuthorized
+                        ? "Vous pouvez maintenant vous connecter."
+                        : "En attente d'une demande autorisee."}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleRdpConnect}
+                  disabled={!requestAuthorized}
+                  className={`inline-flex w-full items-center justify-center gap-2 rounded-lg py-3 text-sm font-black transition ${
                     requestAuthorized
-                      ? "bg-green-100 text-green-700"
-                      : "bg-slate-100 text-slate-400"
+                      ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                      : "cursor-not-allowed bg-slate-100 text-slate-400"
                   }`}
                 >
-                  🖥️
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-black text-slate-800">
-                    {requestAuthorized ? "Acces autorise" : "Connexion RDP"}
-                  </h3>
-
-                  <p className="text-slate-600 mt-2">
-                    {requestAuthorized
-                      ? "Vous pouvez maintenant vous connecter au poste principal."
-                      : "Le bouton sera active apres une demande autorisee."}
-                  </p>
-                </div>
+                  <Monitor className="size-4" />
+                  Se connecter par RDP
+                </button>
               </div>
+            </div>
 
-              <button
-                onClick={handleRdpConnect}
-                disabled={!requestAuthorized}
-                className={`mt-6 w-full rounded-2xl py-4 font-black transition ${
-                  requestAuthorized
-                    ? "bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-200"
-                    : "bg-slate-100 text-slate-400 cursor-not-allowed"
-                }`}
-              >
-                🖥️ Se connecter par RDP
-              </button>
-
-              <p className="text-center text-sm text-slate-500 mt-4">
-                Connexion securisee via le protocole RDP.
-              </p>
+            <div className="flex items-center justify-center gap-2 text-xs text-slate-400">
+              <Clock3 className="size-4" />
+              Mise a jour automatique toutes les 5 secondes
             </div>
           </div>
         </div>
-
-        <footer className="text-center text-sm text-slate-400 mt-8">
-          © 2026 SRM-SM. Tous droits reserves.
-        </footer>
       </section>
     </main>
   );
