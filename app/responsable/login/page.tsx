@@ -59,14 +59,14 @@ export default function ResponsableLoginPage() {
             </div>
 
             <p className="text-blue-100 mt-5 text-sm leading-6">
-              Acces reserve a l'interface d'administration, de supervision du
+              Accès reserve à l'interface d'administration, de supervision du
               poste principal et de consultation de l'historique RDP.
             </p>
           </div>
 
           <div className="p-8">
             <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-4 text-sm text-blue-900 font-semibold">
-              Cette zone est reservee au responsable autorise.
+              Cette zone est réservée au responsable autorisé.
             </div>
 
             <form onSubmit={handleLogin} className="space-y-5">
@@ -103,9 +103,9 @@ export default function ResponsableLoginPage() {
             )}
 
             <div className="mt-6 rounded-2xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600">
-              Apres authentification, le responsable peut consulter le tableau
-              de bord, les demandes d'acces, l'historique RDP et exporter les
-              donnees.
+              Après authentification, le responsable peut consulter le tableau
+              de bord, les demandes d'accès, l'historique RDP et exporter les
+              données.
             </div>
           </div>
 

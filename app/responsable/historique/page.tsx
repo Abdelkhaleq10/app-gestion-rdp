@@ -36,11 +36,11 @@ type HistoryResponse = {
 function actionBadgeClass(action: string) {
   const value = String(action || "").toLowerCase();
 
-  if (value.includes("autorisee") || value.includes("autorisée")) {
+  if (value.includes("autorisée") || value.includes("autorisée")) {
     return "bg-green-100 text-green-700 border-green-200";
   }
 
-  if (value.includes("refusee") || value.includes("refusée")) {
+  if (value.includes("refusée") || value.includes("refusée")) {
     return "bg-red-100 text-red-700 border-red-200";
   }
 
@@ -48,11 +48,11 @@ function actionBadgeClass(action: string) {
     return "bg-blue-100 text-blue-700 border-blue-200";
   }
 
-  if (value.includes("deconnexion") || value.includes("déconnexion")) {
+  if (value.includes("déconnexion") || value.includes("déconnexion")) {
     return "bg-red-100 text-red-700 border-red-200";
   }
 
-  if (value.includes("session deconnectee") || value.includes("session déconnectée")) {
+  if (value.includes("session déconnectée") || value.includes("session déconnectée")) {
     return "bg-slate-100 text-slate-700 border-slate-200";
   }
 
@@ -80,7 +80,7 @@ function typeIpBadgeClass(typeIP: string) {
 function getInitials(name: string) {
   const clean = String(name || "").trim();
 
-  if (!clean || clean === "N/A" || clean.includes("Acces direct")) {
+  if (!clean || clean === "N/A" || clean.includes("Accès direct")) {
     return "AD";
   }
 
@@ -97,9 +97,9 @@ function getActionIcon(action: string) {
   const value = String(action || "").toLowerCase();
 
   if (value.includes("reconnexion")) return "↻";
-  if (value.includes("deconnexion") || value.includes("deconnectee")) return "⏻";
-  if (value.includes("autorisee")) return "✓";
-  if (value.includes("refusee")) return "!";
+  if (value.includes("déconnexion") || value.includes("déconnectée")) return "⏻";
+  if (value.includes("autorisée")) return "✓";
+  if (value.includes("refusée")) return "!";
   if (value.includes("connexion")) return "→";
 
   return "•";
@@ -214,7 +214,7 @@ export default function HistoriquePage() {
 
   const deconnexionCount = history.filter((item) => {
     const value = String(item.action || "").toLowerCase();
-    return value.includes("deconnexion") || value.includes("deconnectee");
+    return value.includes("déconnexion") || value.includes("déconnectée");
   }).length;
 
   const demandeCount = history.filter((item) =>
@@ -239,7 +239,7 @@ export default function HistoriquePage() {
 
             <div className="text-center">
               <h1 className="text-xl md:text-2xl font-black">
-                Gestion d'acces RDP
+                Gestion d'accès RDP
               </h1>
             </div>
 
@@ -257,7 +257,7 @@ export default function HistoriquePage() {
                 href="/responsable/logout"
                 className="rounded-xl bg-white/10 hover:bg-white/20 px-4 py-2 font-semibold transition"
               >
-                Logout
+                Déconnexion
               </a>
             </div>
           </div>
@@ -269,7 +269,7 @@ export default function HistoriquePage() {
               <p className="text-sm font-bold text-slate-500">Total historique</p>
               <p className="text-4xl font-black text-blue-700 mt-2">{total}</p>
               <p className="text-sm text-slate-400 mt-3">
-                Evenements RDP + demandes
+                Événements RDP + demandes
               </p>
             </div>
 
@@ -281,17 +281,17 @@ export default function HistoriquePage() {
                 {connexionCount}
               </p>
               <p className="text-sm text-slate-400 mt-3">
-                Affichees sur cette page
+                Affichées sur cette page
               </p>
             </div>
 
             <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <p className="text-sm font-bold text-slate-500">Deconnexions</p>
+              <p className="text-sm font-bold text-slate-500">Déconnexions</p>
               <p className="text-4xl font-black text-red-700 mt-2">
                 {deconnexionCount}
               </p>
               <p className="text-sm text-slate-400 mt-3">
-                Affichees sur cette page
+                Affichées sur cette page
               </p>
             </div>
 
@@ -301,7 +301,7 @@ export default function HistoriquePage() {
                 {demandeCount}
               </p>
               <p className="text-sm text-slate-400 mt-3">
-                Autorisees ou refusees
+                Autorisées ou refusées
               </p>
             </div>
           </div>
@@ -315,7 +315,7 @@ export default function HistoriquePage() {
               </h2>
               <p className="text-slate-500 mt-1">
                 Consultation, recherche, filtrage et export des connexions RDP
-                et des demandes d'acces.
+                et des demandes d'accès.
               </p>
             </div>
 
@@ -370,11 +370,11 @@ export default function HistoriquePage() {
                 >
                   <option value="">Toutes</option>
                   <option value="Connexion">Connexion</option>
-                  <option value="Deconnexion">Deconnexion</option>
+                  <option value="Deconnexion">Déconnexion</option>
                   <option value="Reconnexion">Reconnexion</option>
-                  <option value="Session deconnectee">Session deconnectee</option>
-                  <option value="Demande autorisee">Demande autorisee</option>
-                  <option value="Demande refusee">Demande refusee</option>
+                  <option value="Session deconnectee">Session déconnectée</option>
+                  <option value="Demande autorisee">Demande autorisée</option>
+                  <option value="Demande refusee">Demande refusée</option>
                 </select>
               </div>
 
@@ -411,7 +411,7 @@ export default function HistoriquePage() {
                   }}
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
                 >
-                  <option value="recent">Plus recent</option>
+                  <option value="recent">Plus récent</option>
                   <option value="oldest">Plus ancien</option>
                 </select>
               </div>
@@ -430,7 +430,7 @@ export default function HistoriquePage() {
                     setDateFilter(e.target.value);
                     setPage(1);
                   }}
-                  placeholder="Ex : 06/05/2026"
+                  placeholder="Ex : 00/00/0000"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
@@ -440,7 +440,7 @@ export default function HistoriquePage() {
                   onClick={handleReset}
                   className="rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-black px-5 py-3"
                 >
-                  Reinitialiser les filtres
+                  Réinitialiser les filtres
                 </button>
               </div>
             </div>
@@ -466,7 +466,7 @@ export default function HistoriquePage() {
               <div className="px-6 py-10 text-slate-500">Chargement...</div>
             ) : history.length === 0 ? (
               <div className="px-6 py-10 text-slate-500">
-                Aucun historique RDP trouve.
+                Aucun historique RDP trouvé.
               </div>
             ) : (
               <>
@@ -565,7 +565,7 @@ export default function HistoriquePage() {
                     disabled={page === 1}
                     className="px-5 py-3 rounded-2xl bg-slate-800 text-white font-black disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Precedent
+                    Précédent
                   </button>
 
                   <span className="px-5 py-3 rounded-2xl bg-blue-100 text-blue-700 font-black">

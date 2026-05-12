@@ -190,7 +190,7 @@ export default function DemandesPage() {
 
             <div className="text-center">
               <h1 className="text-xl md:text-2xl font-black">
-                Gestion d'acces RDP
+                Gestion d'accès RDP
               </h1>
             </div>
 
@@ -208,7 +208,7 @@ export default function DemandesPage() {
                 href="/responsable/logout"
                 className="rounded-xl bg-white/10 hover:bg-white/20 px-4 py-2 font-semibold transition"
               >
-                Logout
+                Déconnexion
               </a>
             </div>
           </div>
@@ -222,31 +222,31 @@ export default function DemandesPage() {
               </p>
               <p className="text-4xl font-black text-blue-700 mt-2">{total}</p>
               <p className="text-sm text-slate-400 mt-3">
-                Toutes les demandes enregistrees
+                Toutes les demandes enregistrées
               </p>
             </div>
 
             <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
               <p className="text-sm font-bold text-slate-500">
-                Autorisees sur cette page
+                Autorisées sur cette page
               </p>
               <p className="text-4xl font-black text-green-700 mt-2">
                 {autoriseCount}
               </p>
               <p className="text-sm text-slate-400 mt-3">
-                Demandes acceptees affichees
+                Demandes acceptées affichées
               </p>
             </div>
 
             <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
               <p className="text-sm font-bold text-slate-500">
-                Refusees sur cette page
+                Refusées sur cette page
               </p>
               <p className="text-4xl font-black text-red-700 mt-2">
                 {refuseCount}
               </p>
               <p className="text-sm text-slate-400 mt-3">
-                Demandes refusees affichees
+                Demandes refusées affichées
               </p>
             </div>
           </div>
@@ -256,11 +256,11 @@ export default function DemandesPage() {
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h2 className="text-3xl font-black text-slate-800">
-                Demandes d'acces
+                Demandes d'accès
               </h2>
               <p className="text-slate-500 mt-1">
-                Suivi, recherche, filtrage et export des demandes envoyees par
-                les employes.
+                Suivi, recherche, filtrage et export des demandes envoyées par
+                les employés.
               </p>
             </div>
 
@@ -332,7 +332,7 @@ export default function DemandesPage() {
                   }}
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
                 >
-                  <option value="recent">Plus recent</option>
+                  <option value="recent">Plus récent</option>
                   <option value="oldest">Plus ancien</option>
                 </select>
               </div>
@@ -349,7 +349,7 @@ export default function DemandesPage() {
                     setDateFilter(e.target.value);
                     setPage(1);
                   }}
-                  placeholder="Ex : 06/05/2026"
+                  placeholder="Ex : 00/00/0000"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
@@ -360,7 +360,7 @@ export default function DemandesPage() {
                 onClick={handleReset}
                 className="rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-black px-5 py-3"
               >
-                Reinitialiser les filtres
+                réinitialiser les filtres
               </button>
             </div>
           </div>
@@ -385,7 +385,7 @@ export default function DemandesPage() {
               <div className="px-6 py-10 text-slate-500">Chargement...</div>
             ) : demandes.length === 0 ? (
               <div className="px-6 py-10 text-slate-500">
-                Aucune demande trouvee.
+                Aucune demande trouvée.
               </div>
             ) : (
               <>
@@ -423,7 +423,7 @@ export default function DemandesPage() {
                                     {user}
                                   </p>
                                   <p className="text-xs text-slate-400">
-                                    Employe
+                                    Employé
                                   </p>
                                 </div>
                               </div>
@@ -463,7 +463,7 @@ export default function DemandesPage() {
                     disabled={page === 1}
                     className="px-5 py-3 rounded-2xl bg-slate-800 text-white font-black disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Precedent
+                    Précédent
                   </button>
 
                   <span className="px-5 py-3 rounded-2xl bg-blue-100 text-blue-700 font-black">

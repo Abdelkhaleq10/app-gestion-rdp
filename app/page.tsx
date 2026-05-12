@@ -399,13 +399,13 @@ export default function EmployePage() {
 
             <div>
               <p className="font-bold text-lg">SRM-SM</p>
-              <p className="text-xs text-blue-200">Acces au poste principal</p>
+              <p className="text-xs text-blue-200">Accès au poste principal</p>
             </div>
           </div>
 
           <div className="text-center">
             <h1 className="text-xl md:text-2xl font-black">
-              Gestion d&apos;acces RDP
+              Gestion d'accès RDP
             </h1>
           </div>
 
@@ -415,7 +415,7 @@ export default function EmployePage() {
             </div>
 
             <div className="text-left md:text-right">
-              <p className="text-xs text-blue-200">Espace employe</p>
+              <p className="text-xs text-blue-200">Espace employé</p>
               <p className="font-bold leading-tight">{employeName}</p>
             </div>
 
@@ -423,7 +423,7 @@ export default function EmployePage() {
               onClick={handleLogout}
               className="rounded-xl bg-white/10 hover:bg-white/20 px-4 py-2 font-semibold transition"
             >
-              Logout
+                Déconnexion
             </button>
           </div>
         </div>
@@ -484,9 +484,9 @@ export default function EmployePage() {
 
                     <p className="text-slate-600 mt-3">
                       {isLibre
-                        ? "Le poste principal est actuellement libre et pret a etre utilise."
+                        ? "Le poste principal est actuellement libre et prêt à être utilisé."
                         : isOccupe
-                        ? "Le poste principal est actuellement occupe par une session RDP."
+                        ? "Le poste principal est actuellement occupé par une session RDP."
                         : "Le statut du poste principal n'est pas encore disponible."}
                     </p>
                   </div>
@@ -494,7 +494,7 @@ export default function EmployePage() {
 
                 <div className="lg:border-l border-slate-200 lg:pl-8 min-w-[230px]">
                   <p className="text-sm font-semibold text-slate-500">
-                    Derniere verification
+                    Dernière vérification
                   </p>
 
                   <div className="flex items-center gap-2 mt-2">
@@ -514,7 +514,7 @@ export default function EmployePage() {
                   </div>
 
                   <p className="mt-4 text-xs text-slate-400">
-                    Mise a jour automatique chaque 5 secondes.
+                    Mise à jour automatique chaque 5 secondes.
                   </p>
                 </div>
               </div>
@@ -528,11 +528,11 @@ export default function EmployePage() {
 
                 <div>
                   <h2 className="text-2xl font-black text-slate-800">
-                    Demande d&apos;acces
+                    Demande d'accès
                   </h2>
 
                   <p className="text-slate-600 mt-1">
-                    Votre demande sera envoyee avec le nom :
+                    Votre demande sera envoyée avec le nom :
                     <span className="font-black text-slate-900">
                       {" "}
                       {employeName}
@@ -558,7 +558,7 @@ export default function EmployePage() {
               </button>
 
               <p className="text-center text-sm text-slate-500 mt-4">
-                Votre demande sera enregistree et visible par le responsable.
+                Votre demande sera enregistrée et visible par le responsable.
               </p>
 
               {message && (
@@ -597,14 +597,14 @@ export default function EmployePage() {
                 </div>
 
                 <div className="py-4 flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Derniere activite</span>
+                  <span className="text-slate-500">Dernière activité</span>
                   <span className="font-bold text-slate-800 text-right">
                     {lastActivityText}
                   </span>
                 </div>
 
                 <div className="py-4 flex items-center justify-between gap-4">
-                  <span className="text-slate-500">Derniere verification</span>
+                  <span className="text-slate-500">Dernière vérification</span>
                   <span className="font-bold text-slate-800 text-right">
                     {loadingStatus ? "..." : dateVerification}
                   </span>
@@ -620,16 +620,16 @@ export default function EmployePage() {
 
                 <div>
                   <h3 className="text-xl font-black text-blue-950">
-                    Acces exclusif
+                    Accès exclusif
                   </h3>
 
                   <p className="text-blue-900/80 mt-3 leading-7">
-                    Pour des raisons de securite et de performance, une seule
-                    personne peut acceder au poste principal a la fois.
+                    Pour des raisons de sécurité et de performance, une seule
+                    personne peut accéder au poste principal à la fois.
                   </p>
 
                   <p className="text-blue-900/80 mt-3 leading-7">
-                    Veuillez attendre la liberation du poste ou reessayer plus
+                    Veuillez attendre la libération du poste ou réessayer plus
                     tard.
                   </p>
                 </div>
@@ -656,13 +656,13 @@ export default function EmployePage() {
 
                 <div>
                   <h3 className="text-xl font-black text-slate-800">
-                    {requestAuthorized ? "Acces autorise" : "Connexion RDP"}
+                    {requestAuthorized ? "Accès autorisé" : "Connexion RDP"}
                   </h3>
 
                   <p className="text-slate-600 mt-2">
                     {requestAuthorized
                       ? "Vous pouvez maintenant vous connecter au poste principal."
-                      : "Le bouton sera active apres une demande autorisee."}
+                      : "Le bouton sera activé après une demande autorisée."}
                   </p>
                 </div>
               </div>
@@ -680,14 +680,14 @@ export default function EmployePage() {
               </button>
 
               <p className="text-center text-sm text-slate-500 mt-4">
-                Connexion securisee via le protocole RDP.
+                Connexion sécurisée via le protocole RDP.
               </p>
             </div>
           </div>
         </div>
 
         <footer className="text-center text-sm text-slate-400 mt-8">
-          © 2026 SRM-SM. Tous droits reserves.
+          © 2026 SRM-SM. Tous droits réservés.
         </footer>
       </section>
     </main>

@@ -54,8 +54,8 @@ export default function EmployeLoginPage() {
 
       router.push("/");
     } catch (error) {
-      console.error("Erreur login employe:", error);
-      setMessage("Erreur lors de la connexion employe.");
+      console.error("Erreur de login employé:", error);
+      setMessage("Erreur lors de la connexion employé.");
     } finally {
       setLoading(false);
     }
@@ -71,11 +71,11 @@ export default function EmployeLoginPage() {
             </p>
 
             <h1 className="text-2xl font-black mt-2">
-              Connexion employe
+              Connexion employé
             </h1>
 
             <p className="text-blue-100 mt-3 text-sm leading-6">
-              Connectez-vous pour demander l'acces au poste principal.
+              Connectez-vous pour demander l'accès au poste principal.
             </p>
           </div>
 
@@ -92,7 +92,7 @@ export default function EmployeLoginPage() {
                   setNomComplet(e.target.value);
                   setMessage("");
                 }}
-                placeholder="Exemple : Abdelkhaleq El Mataoui"
+                placeholder="Nom Complet"
                 className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
               />
             </div>
@@ -133,7 +133,7 @@ export default function EmployeLoginPage() {
               onClick={() => router.push("/employe/register")}
               className="w-full rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black py-3.5 transition"
             >
-              Creer un compte employe
+              Créer un compte employé
             </button>
           </form>
         </div>

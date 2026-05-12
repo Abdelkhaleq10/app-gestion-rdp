@@ -52,7 +52,7 @@ export default function EmployeRegisterPage() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        setMessage(data.message || "Erreur lors de la creation du compte.");
+        setMessage(data.message || "Erreur lors de la création du compte.");
         return;
       }
 
@@ -62,7 +62,7 @@ export default function EmployeRegisterPage() {
       router.push("/");
     } catch (error) {
       console.error("Erreur register employe:", error);
-      setMessage("Erreur lors de la creation du compte employe.");
+      setMessage("Erreur lors de la création du compte employé.");
     } finally {
       setLoading(false);
     }
@@ -78,11 +78,11 @@ export default function EmployeRegisterPage() {
             </p>
 
             <h1 className="text-2xl font-black mt-2">
-              Creation compte employe
+              Création compte employé
             </h1>
 
             <p className="text-blue-100 mt-3 text-sm leading-6">
-              Creez votre compte interne pour demander l'acces au poste
+              Créez votre compte interne pour demander l'accès au poste
               principal.
             </p>
           </div>
@@ -100,7 +100,7 @@ export default function EmployeRegisterPage() {
                   setNomComplet(e.target.value);
                   setMessage("");
                 }}
-                placeholder="Exemple : Abdelkhaleq El Mataoui"
+                placeholder="Nom Complet"
                 className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
               />
             </div>
@@ -117,7 +117,7 @@ export default function EmployeRegisterPage() {
                   setPassword(e.target.value);
                   setMessage("");
                 }}
-                placeholder="Creez un mot de passe"
+                placeholder="Créez un mot de passe"
                 className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
               />
             </div>
@@ -158,7 +158,7 @@ export default function EmployeRegisterPage() {
               onClick={() => router.push("/employe/login")}
               className="w-full rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black py-3.5 transition"
             >
-              J'ai deja un compte
+              J'ai déjà un compte
             </button>
           </form>
         </div>

@@ -75,8 +75,8 @@ function statusBadgeClass(status?: string) {
 function statusLabel(status?: string) {
   const value = String(status || "").toLowerCase();
 
-  if (value.includes("autorise") || value.includes("autoris")) return "Autorisee";
-  if (value.includes("refuse") || value.includes("refus")) return "Refusee";
+  if (value.includes("autorise") || value.includes("autoris")) return "Autorisée";
+  if (value.includes("refuse") || value.includes("refus")) return "Refusée";
 
   return status || "En attente";
 }
@@ -84,7 +84,7 @@ function statusLabel(status?: string) {
 function actionBadgeClass(action?: string) {
   const value = String(action || "").toLowerCase();
 
-  if (value.includes("connexion") && !value.includes("deconnexion")) {
+  if (value.includes("connexion") && !value.includes("déconnexion")) {
     return "bg-green-100 text-green-700";
   }
 
@@ -92,15 +92,15 @@ function actionBadgeClass(action?: string) {
     return "bg-blue-100 text-blue-700";
   }
 
-  if (value.includes("deconnexion") || value.includes("deconnectee")) {
+  if (value.includes("déconnexion") || value.includes("déconnectée")) {
     return "bg-red-100 text-red-700";
   }
 
-  if (value.includes("autorisee")) {
+  if (value.includes("autorisée")) {
     return "bg-green-100 text-green-700";
   }
 
-  if (value.includes("refusee")) {
+  if (value.includes("refusée")) {
     return "bg-red-100 text-red-700";
   }
 
@@ -190,7 +190,7 @@ export default function ResponsableDashboardPage() {
 
             <div className="text-center">
               <h1 className="text-xl md:text-2xl font-black">
-                Gestion d'acces RDP
+                Gestion d'accès RDP
               </h1>
             </div>
 
@@ -206,7 +206,7 @@ export default function ResponsableDashboardPage() {
                 href="/responsable/logout"
                 className="rounded-xl bg-white/10 hover:bg-white/20 px-4 py-2 font-semibold transition"
               >
-                Logout
+                Déconnexion
               </a>
             </div>
           </div>
@@ -245,7 +245,7 @@ export default function ResponsableDashboardPage() {
                 </div>
               </div>
               <div className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-500">
-                Derniere verification :{" "}
+                Dernière vérification :{" "}
                 <span className="font-bold text-slate-700">
                   {dashboard?.date_verification || "..."}
                 </span>
@@ -267,7 +267,7 @@ export default function ResponsableDashboardPage() {
                 </div>
               </div>
               <div className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-500">
-                Utilisateurs connectes
+                Utilisateurs connectés
               </div>
             </div>
 
@@ -278,7 +278,7 @@ export default function ResponsableDashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-500">
-                    Demandes d'acces
+                    Demandes d'accès
                   </p>
                   <p className="text-4xl font-black text-orange-600 mt-1">
                     {dashboard?.total_access_requests ?? 0}
@@ -286,7 +286,7 @@ export default function ResponsableDashboardPage() {
                 </div>
               </div>
               <div className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-500">
-                Total des demandes enregistrees
+                Total des demandes enregistrées
               </div>
             </div>
 
@@ -297,7 +297,7 @@ export default function ResponsableDashboardPage() {
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-500">
-                    Evenements RDP
+                    Événements RDP
                   </p>
                   <p className="text-4xl font-black text-purple-700 mt-1">
                     {dashboard?.total_rdp_events ?? 0}
@@ -305,7 +305,7 @@ export default function ResponsableDashboardPage() {
                 </div>
               </div>
               <div className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-500">
-                Connexions, reconnexions et deconnexions
+                Connexions, reconnexions et déconnexions
               </div>
             </div>
           </div>
@@ -318,7 +318,7 @@ export default function ResponsableDashboardPage() {
                 Tableau de bord responsable
               </h2>
               <p className="text-slate-500 mt-1">
-                Vue generale de l'etat du poste, des demandes et de l'historique RDP.
+                Vue générale de l'état du poste, des demandes et de l'historique RDP.
               </p>
             </div>
 
@@ -337,7 +337,7 @@ export default function ResponsableDashboardPage() {
             <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
                 <h3 className="text-xl font-black text-slate-800">
-                  Demandes recentes
+                  Demandes récentes
                 </h3>
                 <a
                   href="/responsable/demandes"
@@ -363,7 +363,7 @@ export default function ResponsableDashboardPage() {
                     {requests.length === 0 ? (
                       <tr>
                         <td colSpan={5} className="px-6 py-8 text-slate-500">
-                          Aucune demande recente.
+                          Aucune demande récente.
                         </td>
                       </tr>
                     ) : (
@@ -413,7 +413,7 @@ export default function ResponsableDashboardPage() {
             <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
               <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
                 <h3 className="text-xl font-black text-slate-800">
-                  Historique RDP recent
+                  Historique RDP récent
                 </h3>
                 <a
                   href="/responsable/historique"
@@ -426,7 +426,7 @@ export default function ResponsableDashboardPage() {
               <div className="divide-y divide-slate-100">
                 {history.length === 0 ? (
                   <div className="px-6 py-8 text-slate-500">
-                    Aucun evenement recent.
+                    Aucun événement récent.
                   </div>
                 ) : (
                   history.map((item) => (
@@ -474,7 +474,7 @@ export default function ResponsableDashboardPage() {
           <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] gap-6">
             <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
               <h3 className="text-xl font-black text-slate-800 mb-6">
-                Resume operationnel
+                Résumé opérationnel
               </h3>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -513,16 +513,16 @@ export default function ResponsableDashboardPage() {
                 Supervision RDP
               </h3>
               <p className="text-blue-900/80 mt-3 leading-7">
-                Le responsable peut suivre l'etat du poste principal, consulter
-                les demandes d'acces, analyser l'historique RDP et exporter les
-                donnees pour la tracabilite.
+                Le responsable peut suivre l'état du poste principal, consulter
+                les demandes d'accès, analyser l'historique RDP et exporter les
+                données pour la traçabilité.
               </p>
             </div>
           </div>
 
           {loading && (
             <p className="text-center text-sm text-slate-400">
-              Actualisation des donnees...
+              Actualisation des données...
             </p>
           )}
         </section>
