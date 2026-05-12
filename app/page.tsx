@@ -77,11 +77,38 @@ function isValidUserName(value: string) {
   return true;
 }
 
-function isRealRdpConnectionEvent(item: HistoryItem) {
+function getHistoryItems(data: any): HistoryItem[] {
+  return Array.isArray(data.items)
+    ? data.items
+    : Array.isArray(data.data)
+    ? data.data
+    : Array.isArray(data.history)
+    ? data.history
+    : Array.isArray(data.events)
+    ? data.events
+    : Array.isArray(data.rows)
+    ? data.rows
+    : [];
+}
+
+function isAuthorizedRequest(item: HistoryItem) {
   const action = String(item.action || "").toLowerCase();
   const nomSession = String(item.nomSession || "").toLowerCase();
-
   const text = `${action} ${nomSession}`;
+
+  return (
+    isValidUserName(item.utilisateur) &&
+    text.includes("demande") &&
+    text.includes("autorisee")
+  );
+}
+
+function isRealRdpEvent(item: HistoryItem) {
+  const action = String(item.action || "").toLowerCase();
+  const nomSession = String(item.nomSession || "").toLowerCase();
+  const text = `${action} ${nomSession}`;
+
+  if (!isValidUserName(item.utilisateur)) return false;
 
   if (text.includes("demande")) return false;
   if (text.includes("refuse")) return false;
@@ -93,6 +120,28 @@ function isRealRdpConnectionEvent(item: HistoryItem) {
   if (text.includes("connexion")) return true;
 
   return false;
+}
+
+function findCurrentEmployee(items: HistoryItem[]) {
+  /*
+    Logique s7i7a:
+    - ila poste occupe, utilisateur actuel = akher "Demande autorisee"
+    - "Demande refusee" ma khas-hach tbedel utilisateur actuel
+    - Connexion/Reconnexion ghir fallback ila mal9inach demande autorisee
+  */
+  const latestAuthorized = items.find(isAuthorizedRequest);
+
+  if (latestAuthorized) {
+    return latestAuthorized.utilisateur;
+  }
+
+  const latestRdpEvent = items.find(isRealRdpEvent);
+
+  if (latestRdpEvent) {
+    return latestRdpEvent.utilisateur;
+  }
+
+  return "Session active";
 }
 
 function buildRefusedMessage(currentUser: string) {
@@ -175,23 +224,12 @@ export default function EmployePage() {
 
   async function loadHistoryInfos(statusData?: StatusData | null) {
     try {
-      const response = await fetch("/api/history?page=1&pageSize=30&sort=recent", {
+      const response = await fetch("/api/history?page=1&pageSize=50&sort=recent", {
         cache: "no-store",
       });
 
       const data = await response.json();
-
-      const items: HistoryItem[] = Array.isArray(data.items)
-        ? data.items
-        : Array.isArray(data.data)
-        ? data.data
-        : Array.isArray(data.history)
-        ? data.history
-        : Array.isArray(data.events)
-        ? data.events
-        : Array.isArray(data.rows)
-        ? data.rows
-        : [];
+      const items = getHistoryItems(data);
 
       if (items.length > 0) {
         const last = items[0];
@@ -205,16 +243,10 @@ export default function EmployePage() {
         setLastActivityText("Aucune activite recente");
       }
 
-      const latestRdpConnection = items.find((item) => {
-        return isValidUserName(item.utilisateur) && isRealRdpConnectionEvent(item);
-      });
-
       const currentSessions = getSessions(statusData || status);
 
-      if (latestRdpConnection && currentSessions > 0) {
-        setCurrentUserText(latestRdpConnection.utilisateur);
-      } else if (currentSessions > 0) {
-        setCurrentUserText("Session active");
+      if (currentSessions > 0) {
+        setCurrentUserText(findCurrentEmployee(items));
       } else {
         setCurrentUserText("Aucun");
       }
@@ -232,6 +264,37 @@ export default function EmployePage() {
     }
   }
 
+  async function getOccupantBeforeRequest() {
+    try {
+      const statusResponse = await fetch("/api/status", {
+        cache: "no-store",
+      });
+
+      const statusData = (await statusResponse.json()) as StatusData;
+      const currentSessions = getSessions(statusData);
+      const currentEtat = getEtatLabel(statusData);
+
+      if (currentEtat === "Libre" || currentSessions === 0) {
+        return "Aucun";
+      }
+
+      const historyResponse = await fetch(
+        "/api/history?page=1&pageSize=50&sort=recent",
+        {
+          cache: "no-store",
+        }
+      );
+
+      const historyData = await historyResponse.json();
+      const items = getHistoryItems(historyData);
+
+      return findCurrentEmployee(items);
+    } catch (error) {
+      console.error("Erreur detection utilisateur actuel:", error);
+      return currentUserText || "Session active";
+    }
+  }
+
   async function loadCurrentRdpUser(statusData?: StatusData | null) {
     try {
       const response = await fetch("/api/current-rdp-user", {
@@ -240,24 +303,11 @@ export default function EmployePage() {
 
       const data = await response.json();
 
-      const windowsUser = String(data?.utilisateur_actuel || "")
-        .trim()
-        .toLowerCase();
-
       /*
-        Important:
-        autocad_user = compte Windows/RDP technique.
-        On ne l'affiche pas comme employe actuel.
-        L'utilisateur actuel affiche doit rester celui detecte via les evenements RDP de l'application.
+        current-rdp-user kay3tina wach kayna session active.
+        Mais "autocad_user" compte technique, ma khasouch yban comme employe.
+        Smiya dyal employe katji men akher Demande autorisee.
       */
-      if (
-        data?.session_active &&
-        data?.utilisateur_actuel &&
-        windowsUser !== "autocad_user"
-      ) {
-        setCurrentUserText(data.utilisateur_actuel);
-      }
-
       const currentSessions = getSessions(statusData || status);
 
       if (!data?.session_active && currentSessions === 0) {
@@ -274,7 +324,7 @@ export default function EmployePage() {
       setMessage("");
       setRequestAuthorized(false);
 
-      const occupantBeforeRequest = isLibre ? "Aucun" : currentUserText;
+      const occupantBeforeRequest = await getOccupantBeforeRequest();
 
       const response = await fetch("/api/request-access", {
         method: "POST",
