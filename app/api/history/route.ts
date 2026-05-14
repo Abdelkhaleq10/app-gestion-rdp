@@ -30,7 +30,7 @@ type ActiveSession = {
 
 function tableExists(tableName: string) {
   const result = db
-    .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name = ?`)
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = ?")
     .get(tableName) as { name?: string } | undefined;
 
   return Boolean(result?.name);
@@ -78,10 +78,36 @@ function normalizeText(value: unknown, fallback = "N/A") {
   return text;
 }
 
-function normalizeUtilisateur(value: unknown) {
-  const text = normalizeText(value, "Acces direct non identifie");
+function normalizeKey(value: unknown) {
+  return String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
 
-  if (text === "N/A" || text === "-") {
+function isTechnicalOrInvalidUser(value: unknown) {
+  const user = normalizeKey(value);
+
+  if (!user) return true;
+  if (user === "n/a") return true;
+  if (user === "na") return true;
+  if (user === "-") return true;
+  if (user === "unknown") return true;
+  if (user === "autocad_user") return true;
+  if (user === "autocad-user") return true;
+  if (user === "s.cotti") return true;
+  if (user.startsWith("domaine")) return true;
+  if (user.startsWith("domain")) return true;
+  if (user.includes("acces direct non identifie")) return true;
+
+  return false;
+}
+
+function normalizeUtilisateur(value: unknown) {
+  const text = normalizeText(value, "");
+
+  if (isTechnicalOrInvalidUser(text)) {
     return "Acces direct non identifie";
   }
 
@@ -89,19 +115,22 @@ function normalizeUtilisateur(value: unknown) {
 }
 
 function looksLikeIp(value: unknown) {
-  const text = String(value ?? "").trim();
+  const text = String(value ?? "").trim().replace("::ffff:", "");
   return /^(\d{1,3}\.){3}\d{1,3}$/.test(text);
 }
 
 function normalizeIp(value: unknown) {
   const text = normalizeText(value, "N/A");
 
-  if (text === "::1" || text === "127.0.0.1") {
-    return "Locale";
-  }
+  if (text === "::1") return "127.0.0.1";
+  if (text === "127.0.0.1") return "127.0.0.1";
 
   if (text.startsWith("::ffff:")) {
     return text.replace("::ffff:", "");
+  }
+
+  if (!text || text === "-" || normalizeKey(text) === "n/a") {
+    return "N/A";
   }
 
   return text;
@@ -112,7 +141,7 @@ function isValidRemoteIp(ip: string) {
     ip &&
       ip !== "N/A" &&
       ip !== "-" &&
-      ip !== "Locale" &&
+      ip !== "127.0.0.1" &&
       looksLikeIp(ip)
   );
 }
@@ -138,7 +167,7 @@ function detectTypeIP(ip: string, currentTypeIP?: unknown) {
     return "Inconnue";
   }
 
-  if (ip === "Locale" || ip === "127.0.0.1" || ip === "::1") {
+  if (ip === "127.0.0.1" || ip === "::1") {
     return "Locale";
   }
 
@@ -164,6 +193,15 @@ function splitDateTime(value: unknown) {
     return {
       date: `${matchIso[3]}/${matchIso[2]}/${matchIso[1]}`,
       heure: matchIso[4],
+    };
+  }
+
+  const matchIsoShort = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
+
+  if (matchIsoShort) {
+    return {
+      date: `${matchIsoShort[3]}/${matchIsoShort[2]}/${matchIsoShort[1]}`,
+      heure: `${matchIsoShort[4]}:00`,
     };
   }
 
@@ -194,67 +232,92 @@ function normalizeRdpAction(action: unknown, nomSession: string) {
   if (actionText && actionText !== "N/A" && actionText !== "-") {
     const lowerAction = actionText.toLowerCase();
 
-    if (lowerAction.includes("deconnexion") || lowerAction.includes("déconnexion")) {
+    if (lowerAction.includes("reconnexion")) {
+      return "Reconnexion";
+    }
+
+    if (lowerAction.includes("deconnexion") || lowerAction.includes("deconnexion")) {
       return "Deconnexion";
     }
 
-    if (lowerAction.includes("reconnexion")) {
-      return "Reconnexion";
+    if (
+      lowerAction.includes("session deconnectee") ||
+      lowerAction.includes("session deconnectee")
+    ) {
+      return "Session deconnectee";
     }
 
     if (lowerAction.includes("connexion")) {
       return "Connexion";
     }
 
-    if (
-      lowerAction.includes("session deconnectee") ||
-      lowerAction.includes("session déconnectée")
-    ) {
-      return "Session deconnectee";
-    }
-
     return actionText;
-  }
-
-  if (sessionText.includes("deconnexion") || sessionText.includes("déconnexion")) {
-    return "Deconnexion";
-  }
-
-  if (sessionText.includes("session deconnect") || sessionText.includes("session déconnect")) {
-    return "Session deconnectee";
   }
 
   if (sessionText.includes("reconnexion")) {
     return "Reconnexion";
   }
 
+  if (sessionText.includes("session deconnect")) {
+    return "Session deconnectee";
+  }
+
+  if (sessionText.includes("deconnexion")) {
+    return "Deconnexion";
+  }
+
   if (sessionText.includes("connexion")) {
     return "Connexion";
   }
 
-  return "N/A";
+  return "Evenement RDP";
 }
 
-function normalizeRequestAction(status: string) {
-  const value = status.toLowerCase();
+function normalizeRequestStatus(status: unknown) {
+  const value = normalizeKey(status);
 
   if (
-    value.includes("autorise") ||
-    value.includes("autorisée") ||
-    value.includes("autorisee")
+    value === "authorized" ||
+    value === "autorise" ||
+    value === "autorisee" ||
+    value.includes("autor")
   ) {
-    return "Demande autorisee";
+    return "authorized";
   }
 
   if (
-    value.includes("refuse") ||
-    value.includes("refusée") ||
-    value.includes("refusee")
+    value === "rejected" ||
+    value === "refuse" ||
+    value === "refusee" ||
+    value.includes("refus")
   ) {
-    return "Demande refusee";
+    return "rejected";
   }
 
-  return "Demande";
+  if (value === "waiting_current_user") {
+    return "waiting_current_user";
+  }
+
+  if (value === "waiting_release") {
+    return "waiting_release";
+  }
+
+  if (value === "pending") {
+    return "pending";
+  }
+
+  return "pending";
+}
+
+function normalizeRequestAction(status: unknown) {
+  const value = normalizeRequestStatus(status);
+
+  if (value === "authorized") return "Demande autorisee";
+  if (value === "rejected") return "Demande refusee";
+  if (value === "waiting_current_user") return "Demande en attente de reponse";
+  if (value === "waiting_release") return "Demande en attente de liberation";
+
+  return "Demande en attente";
 }
 
 function isAuthorizedRequest(item: HistoryItem) {
@@ -266,18 +329,11 @@ function isRefusedRequest(item: HistoryItem) {
 }
 
 function isUnknownUser(utilisateur: string) {
-  const value = utilisateur.toLowerCase();
-
-  return (
-    !value ||
-    value === "n/a" ||
-    value === "-" ||
-    value.includes("acces direct non identifie")
-  );
+  return isTechnicalOrInvalidUser(utilisateur);
 }
 
 function includesInsensitive(value: string, search: string) {
-  return value.toLowerCase().includes(search.toLowerCase());
+  return normalizeKey(value).includes(normalizeKey(search));
 }
 
 function readRdpEvents(): HistoryItem[] {
@@ -348,9 +404,8 @@ function readRdpEvents(): HistoryItem[] {
     let sessionId = normalizeText(row.sessionId, "N/A");
     let ip = normalizeIp(row.ip);
 
-    // Correction old wrong rows: IP was stored in session_id
     if ((ip === "N/A" || ip === "-") && looksLikeIp(sessionId)) {
-      ip = sessionId;
+      ip = normalizeIp(sessionId);
       sessionId = "N/A";
     }
 
@@ -421,8 +476,8 @@ function readAccessRequests(): HistoryItem[] {
   return rows.map((row) => {
     const { date, heure } = splitDateTime(row.request_time);
     const ip = normalizeIp(row.ip);
-    const status = normalizeText(row.status, "N/A");
-    const reason = normalizeText(row.reason, "N/A");
+    const status = normalizeRequestStatus(row.status);
+    const reason = normalizeText(row.reason, "Demande d'acces");
     const action = normalizeRequestAction(status);
 
     return {
@@ -453,7 +508,6 @@ function linkRdpEventsWithAppRequests(items: HistoryItem[]) {
   const linked = sorted.map((item) => {
     const nextItem = { ...item };
 
-    // Demande autorisee: store user by IP
     if (isAuthorizedRequest(nextItem)) {
       const activeSession: ActiveSession = {
         utilisateur: nextItem.utilisateur,
@@ -461,29 +515,28 @@ function linkRdpEventsWithAppRequests(items: HistoryItem[]) {
         startTimestamp: nextItem.timestamp,
       };
 
-      if (isValidRemoteIp(nextItem.ip)) {
-        activeByIp.set(nextItem.ip, activeSession);
+      if (!isTechnicalOrInvalidUser(nextItem.utilisateur)) {
+        if (isValidRemoteIp(nextItem.ip)) {
+          activeByIp.set(nextItem.ip, activeSession);
+        }
+
+        lastAuthorized = activeSession;
       }
 
-      lastAuthorized = activeSession;
       return nextItem;
     }
 
-    // Demande refusee: do not change active user
     if (isRefusedRequest(nextItem)) {
       return nextItem;
     }
 
-    // RDP events from Windows
     if (nextItem.source === "rdp" && isUnknownUser(nextItem.utilisateur)) {
       let match: ActiveSession | null = null;
 
-      // Best match: same IP
       if (isValidRemoteIp(nextItem.ip)) {
         match = activeByIp.get(nextItem.ip) || null;
       }
 
-      // Fallback only if RDP event has no IP
       if (!match && !isValidRemoteIp(nextItem.ip) && lastAuthorized) {
         const diffMs = nextItem.timestamp - lastAuthorized.startTimestamp;
         const diffHours = diffMs / (1000 * 60 * 60);
@@ -493,7 +546,7 @@ function linkRdpEventsWithAppRequests(items: HistoryItem[]) {
         }
       }
 
-      if (match) {
+      if (match && !isTechnicalOrInvalidUser(match.utilisateur)) {
         nextItem.utilisateur = match.utilisateur;
 
         if (!isValidRemoteIp(nextItem.ip) && isValidRemoteIp(match.ip)) {
@@ -505,6 +558,10 @@ function linkRdpEventsWithAppRequests(items: HistoryItem[]) {
           nextItem.typeIP = detectTypeIP(nextItem.ip);
         }
       }
+    }
+
+    if (isTechnicalOrInvalidUser(nextItem.utilisateur)) {
+      nextItem.utilisateur = "Acces direct non identifie";
     }
 
     return nextItem;
@@ -524,11 +581,11 @@ export async function GET(request: NextRequest) {
       200
     );
 
-    const search = (searchParams.get("search") || "").trim();
-    const actionFilter = (searchParams.get("action") || "").trim();
-    const typeIPFilter = (searchParams.get("typeIP") || "").trim();
-    const dateFilter = (searchParams.get("date") || "").trim();
-    const sort = (searchParams.get("sort") || "recent").trim();
+    const search = normalizeText(searchParams.get("search"), "");
+    const actionFilter = normalizeText(searchParams.get("action"), "");
+    const typeIPFilter = normalizeText(searchParams.get("typeIP"), "");
+    const dateFilter = normalizeText(searchParams.get("date"), "");
+    const sort = normalizeText(searchParams.get("sort"), "recent");
 
     let items: HistoryItem[] = [
       ...readRdpEvents(),
@@ -557,11 +614,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (actionFilter) {
-      items = items.filter((item) => item.action === actionFilter);
+      items = items.filter((item) => normalizeKey(item.action) === normalizeKey(actionFilter));
     }
 
     if (typeIPFilter) {
-      items = items.filter((item) => item.typeIP === typeIPFilter);
+      items = items.filter((item) => normalizeKey(item.typeIP) === normalizeKey(typeIPFilter));
     }
 
     if (dateFilter) {
@@ -584,16 +641,11 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-
-      // page.tsx uses items
       items: paginatedItems,
-
-      // compatibility
       data: paginatedItems,
       history: paginatedItems,
       events: paginatedItems,
       rows: paginatedItems,
-
       total,
       page: safePage,
       pageSize,

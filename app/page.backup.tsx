@@ -23,7 +23,6 @@ type RequestResult = {
   statusLabel?: string;
   workstationStatus?: string;
   currentRdpUser?: string;
-  requestId?: number;
 };
 
 type LastRequestResponse = {
@@ -137,8 +136,6 @@ function isValidUserName(value: string) {
   if (user.includes("acces direct non identifie")) return false;
   if (user === "autocad_user") return false;
   if (user === "s.cotti") return false;
-  if (user === "administrateur") return false;
-  if (user === "administrator") return false;
 
   return true;
 }
@@ -161,6 +158,16 @@ function getHistoryItems(data: unknown): HistoryItem[] {
     : [];
 }
 
+function isAuthorizedRequest(item: HistoryItem) {
+  const text = normalize(`${item.action || ""} ${item.nomSession || ""}`);
+
+  return (
+    isValidUserName(item.utilisateur) &&
+    text.includes("demande") &&
+    text.includes("autorisee")
+  );
+}
+
 function isRealRdpEvent(item: HistoryItem) {
   const text = normalize(`${item.action || ""} ${item.nomSession || ""}`);
 
@@ -171,12 +178,17 @@ function isRealRdpEvent(item: HistoryItem) {
   if (text.includes("autorise")) return false;
   if (text.includes("deconnexion")) return false;
   if (text.includes("deconnectee")) return false;
-  if (text.includes("session deconnectee")) return false;
 
   return text.includes("connexion") || text.includes("reconnexion");
 }
 
 function findCurrentEmployee(items: HistoryItem[]) {
+  const latestAuthorized = items.find(isAuthorizedRequest);
+
+  if (latestAuthorized) {
+    return latestAuthorized.utilisateur;
+  }
+
   const latestRdpEvent = items.find(isRealRdpEvent);
 
   if (latestRdpEvent) {
@@ -246,16 +258,6 @@ function getInitials(name: string) {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
-function isFreshFinalMessage(responseAt?: string) {
-  if (!responseAt) return false;
-
-  const time = new Date(String(responseAt).replace(" ", "T")).getTime();
-
-  if (Number.isNaN(time)) return false;
-
-  return Date.now() - time <= 15000;
-}
-
 export default function EmployePage() {
   const router = useRouter();
 
@@ -267,11 +269,6 @@ export default function EmployePage() {
   const [message, setMessage] = useState("");
   const [requestAuthorized, setRequestAuthorized] = useState(false);
   const [requestWaiting, setRequestWaiting] = useState(false);
-
-  const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
-  const [lastDisplayedFinalId, setLastDisplayedFinalId] = useState<number | null>(
-    null
-  );
 
   const [priority, setPriority] = useState("consultation");
   const [optionalMessage, setOptionalMessage] = useState("");
@@ -298,21 +295,6 @@ export default function EmployePage() {
     }
 
     setEmployeName(savedName);
-
-    fetch("/api/employe-last-login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        full_name: savedName,
-        employeeName: savedName,
-        employeName: savedName,
-      }),
-    }).catch((error) => {
-      console.error("Erreur mise a jour derniere connexion :", error);
-    });
-
     loadAllData();
     loadLastRequestResult(savedName);
 
@@ -422,34 +404,18 @@ export default function EmployePage() {
 
   async function loadCurrentRdpUser(statusData?: StatusData | null) {
     try {
+      const response = await fetch("/api/current-rdp-user", {
+        cache: "no-store",
+      });
+
+      const data = await response.json();
       const currentSessions = getSessions(statusData || status);
 
-      if (currentSessions === 0) {
+      if (!data?.session_active && currentSessions === 0) {
         setCurrentUserText("Aucun");
-        return;
       }
-
-      const historyResponse = await fetch(
-        "/api/history?page=1&pageSize=50&sort=recent",
-        {
-          cache: "no-store",
-        }
-      );
-
-      const historyData = await historyResponse.json();
-      const items = getHistoryItems(historyData);
-
-      const latestRdpEvent = items.find(isRealRdpEvent);
-
-      if (latestRdpEvent?.utilisateur) {
-        setCurrentUserText(latestRdpEvent.utilisateur);
-        return;
-      }
-
-      setCurrentUserText("Session active");
     } catch (error) {
       console.error("Erreur lors du chargement de l'utilisateur RDP actuel :", error);
-      setCurrentUserText("Session active");
     }
   }
 
@@ -475,75 +441,39 @@ export default function EmployePage() {
       const data: LastRequestResponse = await response.json();
       const lastRequest = data.request;
 
-      if (!lastRequest) {
-        setRequestAuthorized(false);
-        setRequestWaiting(false);
-        setMessage("");
-        setActiveRequestId(null);
-        return;
-      }
+      if (!lastRequest) return;
 
       const requestStatus = normalize(lastRequest.status);
       const responseMessage = String(lastRequest.response_message || "").trim();
-      const requestId = Number(lastRequest.id);
-
-      if (activeRequestId && requestId !== activeRequestId) {
-        return;
-      }
-
-      if (isWaitingStatus(requestStatus)) {
-        setActiveRequestId(requestId);
-        setLastDisplayedFinalId(null);
-        setRequestAuthorized(false);
-        setRequestWaiting(true);
-        setMessage(
-          responseMessage ||
-            "Demande envoyee. Elle est en attente de reponse de l'utilisateur actuellement connecte."
-        );
-        return;
-      }
 
       if (isAuthorizedStatus(requestStatus)) {
-        setActiveRequestId(requestId);
         setRequestAuthorized(true);
         setRequestWaiting(false);
-
-        if (lastDisplayedFinalId !== requestId) {
-          setMessage(
-            responseMessage ||
-              "Acces autorise. Vous pouvez maintenant vous connecter au poste principal."
-          );
-          setLastDisplayedFinalId(requestId);
-        }
-
+        setMessage(
+          responseMessage ||
+            "Acces autorise. Vous pouvez maintenant vous connecter au poste principal."
+        );
         return;
       }
 
       if (isRejectedStatus(requestStatus)) {
         setRequestAuthorized(false);
         setRequestWaiting(false);
-
-        if (
-          lastDisplayedFinalId !== requestId &&
-          isFreshFinalMessage(lastRequest.response_at)
-        ) {
-          setMessage(
-            responseMessage ||
-              "Demande refusee par l'utilisateur actuellement connecte."
-          );
-          setLastDisplayedFinalId(requestId);
-
-          setTimeout(() => {
-            setMessage("");
-            setActiveRequestId(null);
-            setLastDisplayedFinalId(null);
-          }, 15000);
-        } else if (!isFreshFinalMessage(lastRequest.response_at)) {
-          setMessage("");
-          setActiveRequestId(null);
-        }
-
+        setMessage(
+          responseMessage ||
+            "Demande refusee par l'utilisateur actuellement connecte."
+        );
         return;
+      }
+
+      if (isWaitingStatus(requestStatus)) {
+        setRequestAuthorized(false);
+        setRequestWaiting(true);
+
+        setMessage(
+          responseMessage ||
+            "Demande envoyee. Elle est en attente de reponse de l'utilisateur actuellement connecte."
+        );
       }
     } catch (error) {
       console.error("Erreur lors du chargement de la derniere demande :", error);
@@ -580,12 +510,6 @@ export default function EmployePage() {
       });
 
       const result: RequestResult = await response.json();
-
-      if (result.requestId) {
-        setActiveRequestId(Number(result.requestId));
-        setLastDisplayedFinalId(null);
-      }
-
       const responseMessage = result.message || "";
 
       const authorized =
@@ -595,17 +519,18 @@ export default function EmployePage() {
         isAuthorizedStatus(responseMessage);
 
       const waiting =
-        isWaitingStatus(result.status) || isWaitingStatus(responseMessage);
+        isWaitingStatus(result.status) ||
+        isWaitingStatus(responseMessage);
 
       const rejected =
-        isRejectedStatus(result.status) || isRejectedStatus(responseMessage);
+        isRejectedStatus(result.status) ||
+        isRejectedStatus(responseMessage);
 
       if (authorized) {
         setRequestAuthorized(true);
         setRequestWaiting(false);
         setMessage(
-          responseMessage ||
-            "Acces autorise. Vous pouvez maintenant vous connecter au poste principal."
+          "Acces autorise. Vous pouvez maintenant vous connecter au poste principal."
         );
       } else if (waiting) {
         setRequestAuthorized(false);
@@ -621,12 +546,6 @@ export default function EmployePage() {
           responseMessage ||
             "Demande refusee par l'utilisateur actuellement connecte."
         );
-
-        setTimeout(() => {
-          setMessage("");
-          setActiveRequestId(null);
-          setLastDisplayedFinalId(null);
-        }, 15000);
       } else {
         setRequestAuthorized(false);
         setRequestWaiting(false);
@@ -668,8 +587,8 @@ export default function EmployePage() {
       <header className="bg-blue-950 text-white shadow-lg">
         <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-4 px-6 py-4 md:grid-cols-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-xl font-black">
-              PC
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-xl">
+              🖥️
             </div>
 
             <div>
@@ -711,7 +630,7 @@ export default function EmployePage() {
               <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-5">
                   <div
-                    className={`flex h-28 w-28 items-center justify-center rounded-full text-5xl font-black ${
+                    className={`flex h-28 w-28 items-center justify-center rounded-full text-5xl ${
                       isLibre
                         ? "bg-green-100 text-green-700"
                         : isOccupe
@@ -719,7 +638,7 @@ export default function EmployePage() {
                         : "bg-slate-100 text-slate-600"
                     }`}
                   >
-                    {isLibre ? "OK" : isOccupe ? "!" : "?"}
+                    {isLibre ? "✓" : isOccupe ? "!" : "?"}
                   </div>
 
                   <div>
@@ -794,7 +713,7 @@ export default function EmployePage() {
             <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-lg md:p-8">
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-700 text-xl font-black text-white">
-                  {getInitials(employeName)}
+                  👤
                 </div>
 
                 <div>
@@ -863,6 +782,7 @@ export default function EmployePage() {
                 disabled={requestLoading}
                 className="mt-6 w-full rounded-2xl bg-blue-700 py-4 font-black text-white shadow-lg shadow-blue-200 transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
               >
+                🔒{" "}
                 {requestLoading ? "Envoi de la demande..." : "Demander l'acces"}
               </button>
 
@@ -956,13 +876,13 @@ export default function EmployePage() {
             >
               <div className="flex items-start gap-4">
                 <div
-                  className={`flex h-16 w-16 items-center justify-center rounded-full text-3xl font-black ${
+                  className={`flex h-16 w-16 items-center justify-center rounded-full text-3xl ${
                     requestAuthorized
                       ? "bg-green-100 text-green-700"
                       : "bg-slate-100 text-slate-400"
                   }`}
                 >
-                  PC
+                  🖥️
                 </div>
 
                 <div>
@@ -987,7 +907,7 @@ export default function EmployePage() {
                     : "cursor-not-allowed bg-slate-100 text-slate-400"
                 }`}
               >
-                Se connecter par RDP
+                🖥️ Se connecter par RDP
               </button>
 
               <p className="mt-4 text-center text-sm text-slate-500">
