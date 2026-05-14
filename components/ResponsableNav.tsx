@@ -10,6 +10,7 @@ export default function ResponsableNav() {
     { href: "/responsable/dashboard", label: "Dashboard" },
     { href: "/responsable/demandes", label: "Demandes" },
     { href: "/responsable/historique", label: "Historique RDP" },
+    { href: "/responsable/employes", label: "Employes" },
   ];
 
   return (
