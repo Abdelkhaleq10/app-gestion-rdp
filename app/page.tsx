@@ -1,7 +1,17 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import {
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  LockKeyhole,
+  LogOut,
+  MonitorCheck,
+  Wifi,
+} from "lucide-react";
 
 type StatusData = {
   etat_poste?: string;
@@ -58,42 +68,12 @@ type PriorityOption = {
 };
 
 const PRIORITY_OPTIONS: PriorityOption[] = [
-  {
-    value: "urgent",
-    label: "Urgent",
-    description: "Besoin prioritaire ou situation bloquante.",
-    level: 5,
-  },
-  {
-    value: "consultation",
-    label: "Consultation",
-    description: "Consultation rapide d'une information.",
-    level: 2,
-  },
-  {
-    value: "verification",
-    label: "Verification",
-    description: "Verification d'un element ou d'un document.",
-    level: 3,
-  },
-  {
-    value: "impression",
-    label: "Impression",
-    description: "Impression ou recuperation d'un document.",
-    level: 2,
-  },
-  {
-    value: "assistance",
-    label: "Assistance",
-    description: "Besoin d'aide ou d'intervention.",
-    level: 4,
-  },
-  {
-    value: "autre",
-    label: "Autre",
-    description: "Autre motif de demande.",
-    level: 1,
-  },
+  { value: "urgent", label: "Urgent", description: "Besoin prioritaire ou situation bloquante.", level: 5 },
+  { value: "consultation", label: "Consultation", description: "Consultation rapide d'une information.", level: 2 },
+  { value: "verification", label: "Vérification", description: "Vérification d'un élément ou d'un document.", level: 3 },
+  { value: "impression", label: "Impression", description: "Impression ou récupération d'un document.", level: 2 },
+  { value: "assistance", label: "Assistance", description: "Besoin d'aide ou d'intervention.", level: 4 },
+  { value: "autre", label: "Autre", description: "Autre motif de demande.", level: 1 },
 ];
 
 function normalize(value: unknown) {
@@ -124,16 +104,11 @@ function getSessions(status: StatusData | null) {
 }
 
 function getDateVerification(status: StatusData | null) {
-  return (
-    status?.date_verification || status?.dateVerification || "Non disponible"
-  );
+  return status?.date_verification || status?.dateVerification || "Non disponible";
 }
 
 function getInitials(name: string) {
-  const parts = String(name || "")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean);
+  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
 
   if (parts.length === 0) return "NA";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -225,9 +200,7 @@ function getHistoryItems(data: unknown): HistoryItem[] {
 }
 
 function isRealRdpEvent(item: HistoryItem) {
-  const text = normalize(
-    `${item.action || ""} ${item.nomSession || ""} ${item.session || ""}`
-  );
+  const text = normalize(`${item.action || ""} ${item.nomSession || ""} ${item.session || ""}`);
 
   if (!isValidUserName(item.utilisateur || "")) return false;
 
@@ -265,13 +238,9 @@ export default function EmployePage() {
   const [requestAuthorized, setRequestAuthorized] = useState(false);
   const [requestWaiting, setRequestWaiting] = useState(false);
   const [activeRequestId, setActiveRequestId] = useState<number | null>(null);
-  const [lastDisplayedFinalId, setLastDisplayedFinalId] = useState<number | null>(
-    null
-  );
+  const [lastDisplayedFinalId, setLastDisplayedFinalId] = useState<number | null>(null);
 
-  const [lastActivityText, setLastActivityText] = useState(
-    "Aucune activite recente"
-  );
+  const [lastActivityText, setLastActivityText] = useState("Aucune activité récente");
   const [currentUserText, setCurrentUserText] = useState("Aucun");
 
   const currentEmployeeConnectedRef = useRef(false);
@@ -301,7 +270,7 @@ export default function EmployePage() {
     if (isCurrentEmployeeConnected) {
       return {
         title: "Session active",
-        text: "Vous etes actuellement connecte au poste principal. Aucune nouvelle demande n'est necessaire.",
+        text: "Vous êtes actuellement connecté au poste principal. Aucune nouvelle demande n'est nécessaire.",
         className: "bg-blue-50 text-blue-800 ring-blue-200",
         buttonClass: "bg-slate-200 text-slate-500 cursor-not-allowed",
       };
@@ -309,7 +278,7 @@ export default function EmployePage() {
 
     if (canDownloadRdp) {
       return {
-        title: "Acces autorise",
+        title: "Accès autorisé",
         text: "Vous pouvez maintenant vous connecter au poste principal.",
         className: "bg-emerald-50 text-emerald-800 ring-emerald-200",
         buttonClass: "bg-emerald-600 hover:bg-emerald-700 text-white",
@@ -318,8 +287,8 @@ export default function EmployePage() {
 
     if (requestAuthorized && isOccupe) {
       return {
-        title: "En attente de liberation",
-        text: "Votre demande est autorisee, mais le poste est encore occupe. Le fichier RDP sera disponible apres fermeture complete de la session active.",
+        title: "En attente de libération",
+        text: "Votre demande est autorisée, mais le poste est encore occupé. Le fichier RDP sera disponible après fermeture complète de la session active.",
         className: "bg-orange-50 text-orange-800 ring-orange-200",
         buttonClass: "bg-slate-200 text-slate-500 cursor-not-allowed",
       };
@@ -327,16 +296,11 @@ export default function EmployePage() {
 
     return {
       title: "Connexion RDP",
-      text: "Le bouton sera active apres une demande autorisee et un poste libre.",
+      text: "Le bouton sera activé après une demande autorisée et un poste libre.",
       className: "bg-white text-slate-700 ring-slate-200",
       buttonClass: "bg-slate-200 text-slate-500 cursor-not-allowed",
     };
-  }, [
-    canDownloadRdp,
-    requestAuthorized,
-    isOccupe,
-    isCurrentEmployeeConnected,
-  ]);
+  }, [canDownloadRdp, requestAuthorized, isOccupe, isCurrentEmployeeConnected]);
 
   useEffect(() => {
     const savedName = localStorage.getItem("employe_nom");
@@ -350,16 +314,14 @@ export default function EmployePage() {
 
     fetch("/api/employe-last-login", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         full_name: savedName,
         employeeName: savedName,
         employeName: savedName,
       }),
     }).catch((error) => {
-      console.error("Erreur mise a jour derniere connexion :", error);
+      console.error("Erreur mise à jour dernière connexion :", error);
     });
   }, [router]);
 
@@ -385,7 +347,7 @@ export default function EmployePage() {
       setActiveRequestId(null);
       setLastDisplayedFinalId(null);
       setMessage(
-        "Vous etes actuellement connecte au poste principal. Aucune nouvelle demande n'est necessaire."
+        "Vous êtes actuellement connecté au poste principal. Aucune nouvelle demande n'est nécessaire."
       );
     }
   }, [isCurrentEmployeeConnected]);
@@ -399,13 +361,10 @@ export default function EmployePage() {
     try {
       setLoadingStatus(true);
 
-      const response = await fetch("/api/status", {
-        cache: "no-store",
-      });
-
+      const response = await fetch("/api/status", { cache: "no-store" });
       const data = (await response.json()) as StatusData;
-      setStatus(data);
 
+      setStatus(data);
       return data;
     } catch (error) {
       console.error("Erreur chargement status :", error);
@@ -429,12 +388,12 @@ export default function EmployePage() {
         const last = items[0];
 
         setLastActivityText(
-          `${last.action || last.nomSession || last.session || "Activite"} - ${
+          `${last.action || last.nomSession || last.session || "Activité"} - ${
             last.date || "-"
           } ${last.heure || ""}`
         );
       } else {
-        setLastActivityText("Aucune activite recente");
+        setLastActivityText("Aucune activité récente");
       }
 
       const currentSessions = getSessions(statusData || status);
@@ -463,24 +422,17 @@ export default function EmployePage() {
         setActiveRequestId(null);
         setLastDisplayedFinalId(null);
         setMessage(
-          "Vous etes actuellement connecte au poste principal. Aucune nouvelle demande n'est necessaire."
+          "Vous êtes actuellement connecté au poste principal. Aucune nouvelle demande n'est nécessaire."
         );
         return;
       }
 
-      await fetch("/api/sync-request-responses", {
-        cache: "no-store",
-      }).catch(() => null);
-
-      await fetch("/api/sync-release", {
-        cache: "no-store",
-      }).catch(() => null);
+      await fetch("/api/sync-request-responses", { cache: "no-store" }).catch(() => null);
+      await fetch("/api/sync-release", { cache: "no-store" }).catch(() => null);
 
       const response = await fetch(
         `/api/my-last-request?employeeName=${encodeURIComponent(employeeName)}`,
-        {
-          cache: "no-store",
-        }
+        { cache: "no-store" }
       );
 
       const data: LastRequestResponse = await response.json();
@@ -500,17 +452,6 @@ export default function EmployePage() {
       const requestStatus = normalize(lastRequest.status);
       const responseMessage = String(lastRequest.response_message || "").trim();
 
-      if (currentEmployeeConnectedRef.current) {
-        setRequestAuthorized(false);
-        setRequestWaiting(false);
-        setActiveRequestId(null);
-        setLastDisplayedFinalId(null);
-        setMessage(
-          "Vous etes actuellement connecte au poste principal. Aucune nouvelle demande n'est necessaire."
-        );
-        return;
-      }
-
       if (activeRequestId && requestId !== activeRequestId) {
         return;
       }
@@ -522,7 +463,7 @@ export default function EmployePage() {
         setRequestWaiting(true);
         setMessage(
           responseMessage ||
-            "Demande envoyee a l'utilisateur actuellement connecte. En attente de sa reponse."
+            "Demande envoyée à l'utilisateur actuellement connecté. En attente de sa réponse."
         );
         return;
       }
@@ -535,11 +476,11 @@ export default function EmployePage() {
         if (isLibreRef.current) {
           setMessage(
             responseMessage ||
-              "Poste libre. Acces autorise. Vous pouvez vous connecter par RDP."
+              "Poste libre. Accès autorisé. Vous pouvez vous connecter par RDP."
           );
         } else {
           setMessage(
-            "Acces autorise, mais le poste principal est encore occupe. Veuillez attendre la liberation complete de la session."
+            "Accès autorisé, mais le poste principal est encore occupé. Veuillez attendre la libération complète de la session."
           );
         }
 
@@ -557,7 +498,7 @@ export default function EmployePage() {
         ) {
           setMessage(
             responseMessage ||
-              "Demande refusee par l'utilisateur actuellement connecte."
+              "Demande refusée par l'utilisateur actuellement connecté."
           );
 
           setLastDisplayedFinalId(requestId);
@@ -573,8 +514,6 @@ export default function EmployePage() {
           setMessage("");
           setActiveRequestId(null);
         }
-
-        return;
       }
     } catch (error) {
       console.error("Erreur chargement derniere demande :", error);
@@ -588,7 +527,7 @@ export default function EmployePage() {
       setActiveRequestId(null);
       setLastDisplayedFinalId(null);
       setMessage(
-        "Vous etes actuellement connecte au poste principal. Aucune nouvelle demande n'est necessaire."
+        "Vous êtes actuellement connecté au poste principal. Aucune nouvelle demande n'est nécessaire."
       );
       return;
     }
@@ -603,9 +542,7 @@ export default function EmployePage() {
 
       const response = await fetch("/api/request-access", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName: employeName,
           employeeName: employeName,
@@ -648,11 +585,11 @@ export default function EmployePage() {
         if (isLibreRef.current) {
           setMessage(
             responseMessage ||
-              "Poste libre. Acces autorise. Vous pouvez vous connecter par RDP."
+              "Poste libre. Accès autorisé. Vous pouvez vous connecter par RDP."
           );
         } else {
           setMessage(
-            "Acces autorise, mais connexion RDP bloquee temporairement : le poste principal est encore occupe."
+            "Accès autorisé, mais connexion RDP bloquée temporairement : le poste principal est encore occupé."
           );
         }
       } else if (waiting) {
@@ -660,12 +597,12 @@ export default function EmployePage() {
         setRequestWaiting(true);
         setMessage(
           responseMessage ||
-            "Demande envoyee a l'utilisateur actuellement connecte. En attente de sa reponse."
+            "Demande envoyée à l'utilisateur actuellement connecté. En attente de sa réponse."
         );
       } else if (rejected) {
         setRequestAuthorized(false);
         setRequestWaiting(false);
-        setMessage(responseMessage || "Demande refusee.");
+        setMessage(responseMessage || "Demande refusée.");
 
         setTimeout(() => {
           if (!currentEmployeeConnectedRef.current) {
@@ -679,7 +616,7 @@ export default function EmployePage() {
         setRequestWaiting(false);
         setMessage(
           responseMessage ||
-            "Acces refuse : le poste principal est actuellement occupe."
+            "Accès refusé : le poste principal est actuellement occupé."
         );
       }
 
@@ -687,7 +624,7 @@ export default function EmployePage() {
       await loadLastRequestResult(employeName);
     } catch (error) {
       console.error("Erreur demande acces :", error);
-      setMessage("Erreur lors de l'envoi de la demande d'acces.");
+      setMessage("Erreur lors de l'envoi de la demande d'accès.");
       setRequestAuthorized(false);
       setRequestWaiting(false);
     } finally {
@@ -701,9 +638,7 @@ export default function EmployePage() {
 
       const response = await fetch("/api/cancel-my-request", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           employeeName: employeName,
           requestId: activeRequestId,
@@ -719,7 +654,7 @@ export default function EmployePage() {
       setOptionalMessage("");
       setMessage(
         result.message ||
-          "Demande annulee. Vous pouvez reformuler une nouvelle demande."
+          "Demande annulée. Vous pouvez reformuler une nouvelle demande."
       );
 
       setTimeout(() => {
@@ -747,7 +682,7 @@ export default function EmployePage() {
   function handleRdpConnect() {
     if (currentEmployeeConnectedRef.current) {
       setMessage(
-        "Vous etes actuellement connecte au poste principal. Aucune nouvelle connexion n'est necessaire."
+        "Vous êtes actuellement connecté au poste principal. Aucune nouvelle connexion n'est nécessaire."
       );
       return;
     }
@@ -755,8 +690,8 @@ export default function EmployePage() {
     if (!requestAuthorized || !isLibreRef.current) {
       setMessage(
         isOccupeRef.current
-          ? "Connexion RDP bloquee : le poste principal est encore occupe. Veuillez attendre la liberation complete de la session."
-          : "Connexion RDP bloquee : aucune demande autorisee active."
+          ? "Connexion RDP bloquée : le poste principal est encore occupé. Veuillez attendre la libération complète de la session."
+          : "Connexion RDP bloquée : aucune demande autorisée active."
       );
       return;
     }
@@ -776,39 +711,41 @@ export default function EmployePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-4">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-950 text-lg font-black text-white shadow-lg">
-              PC
-            </div>
-
-            <div>
-              <p className="text-xl font-black text-slate-950">SRM-SM</p>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
-                Acces au poste principal
-              </p>
-            </div>
+    <main className="min-h-screen bg-[#f4f7fb] text-slate-900">
+      <header className="relative z-50 bg-[#173987] text-white shadow-[0_18px_45px_rgba(15,23,42,0.22)]">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-4 px-6 py-5 lg:grid-cols-[250px_minmax(0,1fr)_430px]">
+          <div className="flex items-center justify-center lg:justify-start">
+            <Image
+              src="/images/logo-srm-icon.png"
+              alt="Logo SRM-SM"
+              width={320}
+              height={160}
+              className="h-[105px] w-auto object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.35)]"
+              priority
+            />
           </div>
 
-          <div className="hidden text-center md:block">
-            <p className="text-2xl font-black text-slate-950">
-              Gestion d'acces RDP
+          <div className="min-w-0 text-center">
+            <h1 className="truncate text-2xl font-black leading-tight tracking-tight text-white xl:text-3xl">
+              Gestion d&apos;accès par RDP
+            </h1>
+
+            <p className="mt-3 text-xs font-black uppercase tracking-[0.45em] text-blue-100">
+              Espace employé
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="hidden items-center gap-3 rounded-2xl bg-slate-100 px-3 py-2 ring-1 ring-slate-200 md:flex">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-700 text-sm font-black text-white">
+          <div className="flex min-w-0 items-center justify-center gap-3 lg:justify-end">
+            <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-white/12 px-3 py-2 ring-1 ring-white/15 backdrop-blur">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-sm font-black text-white shadow-lg">
                 {getInitials(employeName)}
               </div>
 
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
-                  Espace employe
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-blue-100">
+                  Espace employé
                 </p>
-                <p className="max-w-[190px] truncate text-sm font-black text-slate-900">
+                <p className="max-w-[175px] truncate text-sm font-black text-white">
                   {employeName}
                 </p>
               </div>
@@ -816,9 +753,10 @@ export default function EmployePage() {
 
             <button
               onClick={handleLogout}
-              className="rounded-2xl bg-blue-950 px-4 py-2.5 text-sm font-black text-white shadow-lg transition hover:bg-blue-900"
+              className="inline-flex h-12 shrink-0 items-center gap-2 rounded-2xl bg-red-500 px-5 text-sm font-black text-white shadow-xl shadow-red-950/20 transition hover:bg-red-600"
             >
-              Deconnexion
+              <LogOut className="h-4 w-4" />
+              Déconnexion
             </button>
           </div>
         </div>
@@ -827,73 +765,123 @@ export default function EmployePage() {
       <section className="mx-auto max-w-7xl px-5 py-8">
         <div className="grid gap-6 lg:grid-cols-[1.35fr_0.75fr]">
           <div className="space-y-6">
-            <section className="overflow-hidden rounded-[2rem] bg-white shadow-xl shadow-slate-200/70 ring-1 ring-slate-200">
+            <section
+              className={`relative overflow-hidden rounded-[2rem] shadow-2xl ring-1 ${
+                isLibre
+                  ? "bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-700 text-white shadow-emerald-900/30 ring-emerald-300"
+                  : isOccupe
+                  ? "bg-gradient-to-br from-red-500 via-red-600 to-rose-800 text-white shadow-red-900/35 ring-red-300"
+                  : "bg-gradient-to-br from-slate-500 via-slate-600 to-slate-800 text-white shadow-slate-900/25 ring-slate-300"
+              }`}
+            >
               <div
-                className={`h-1.5 ${
+                className={`absolute -left-24 -top-24 h-72 w-72 rounded-full blur-3xl ${
                   isLibre
-                    ? "bg-emerald-500"
+                    ? "bg-emerald-200/40"
                     : isOccupe
-                    ? "bg-red-500"
-                    : "bg-slate-400"
-                }`}
+                    ? "bg-red-200/40"
+                    : "bg-white/20"
+                } animate-pulse`}
               />
 
-              <div className="p-6 md:p-8">
-                <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-                  <div className="flex items-center gap-5">
+              <div
+                className={`absolute -bottom-28 right-8 h-80 w-80 rounded-full blur-3xl ${
+                  isLibre
+                    ? "bg-cyan-200/30"
+                    : isOccupe
+                    ? "bg-orange-200/30"
+                    : "bg-slate-200/20"
+                } animate-pulse`}
+              />
+
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(255,255,255,0.26),transparent_30%),radial-gradient(circle_at_85%_75%,rgba(255,255,255,0.18),transparent_28%)]" />
+
+              <div className="relative p-7 md:p-9">
+                <div className="flex flex-col gap-7 md:flex-row md:items-center">
+                  <div className="relative flex h-36 w-36 shrink-0 items-center justify-center">
                     <div
-                      className={`flex h-24 w-24 items-center justify-center rounded-[1.75rem] text-4xl font-black ring-1 ${
+                      className={`absolute h-28 w-28 rounded-[2rem] ${
                         isLibre
-                          ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                          ? "bg-emerald-200/40"
                           : isOccupe
-                          ? "bg-red-50 text-red-700 ring-red-200"
-                          : "bg-slate-100 text-slate-500 ring-slate-200"
+                          ? "bg-red-200/45"
+                          : "bg-white/25"
+                      } blur-xl animate-pulse`}
+                    />
+
+                    <div
+                      className={`absolute h-28 w-28 rounded-[2rem] border ${
+                        isLibre
+                          ? "border-emerald-100/45"
+                          : isOccupe
+                          ? "border-red-100/45"
+                          : "border-white/35"
+                      } animate-ping`}
+                    />
+
+                    <div
+                      className={`relative flex h-28 w-28 items-center justify-center rounded-[2rem] border border-white/30 bg-white/18 shadow-2xl backdrop-blur-md ${
+                        isLibre
+                          ? "shadow-emerald-950/20"
+                          : isOccupe
+                          ? "shadow-red-950/30"
+                          : "shadow-slate-950/20"
                       }`}
                     >
-                      {isLibre ? "OK" : isOccupe ? "!" : "?"}
-                    </div>
-
-                    <div>
-                      <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">
-                        Etat du poste principal
-                      </p>
-
-                      <h1
-                        className={`mt-2 text-4xl font-black ${
-                          isLibre
-                            ? "text-emerald-700"
-                            : isOccupe
-                            ? "text-red-700"
-                            : "text-slate-700"
-                        }`}
-                      >
-                        {isCurrentEmployeeConnected
-                          ? "Session active"
-                          : `Poste ${etat.toLowerCase()}`}
-                      </h1>
-
-                      <p className="mt-3 max-w-xl text-sm font-medium leading-7 text-slate-500">
-                        {isCurrentEmployeeConnected
-                          ? "Vous etes actuellement connecte au poste principal."
-                          : isLibre
-                          ? "Le poste principal est disponible."
-                          : isOccupe
-                          ? "Le poste principal est actuellement occupe par une session RDP."
-                          : "Statut en cours de synchronisation."}
-                      </p>
+                      {isLibre ? (
+                        <CheckCircle2 className="h-16 w-16 text-white drop-shadow-lg" />
+                      ) : isOccupe ? (
+                        <LockKeyhole className="h-16 w-16 text-white drop-shadow-lg" />
+                      ) : (
+                        <AlertTriangle className="h-16 w-16 text-white drop-shadow-lg" />
+                      )}
                     </div>
                   </div>
 
-                  <div className="rounded-2xl bg-slate-50 p-5 ring-1 ring-slate-200">
-                    <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-                      Derniere verification
+                  <div className="min-w-0 flex-1">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/18 px-5 py-2 text-xs font-black uppercase tracking-[0.25em] text-white/95 backdrop-blur">
+                      {isLibre ? (
+                        <>
+                          <Activity className="h-4 w-4" />
+                          Disponible
+                        </>
+                      ) : isOccupe ? (
+                        <>
+                          <Wifi className="h-4 w-4" />
+                          Session en cours
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="h-4 w-4" />
+                          Synchronisation
+                        </>
+                      )}
+                    </div>
+
+                    <h1 className="mt-5 text-5xl font-black tracking-tight text-white md:text-6xl">
+                      {isCurrentEmployeeConnected
+                        ? "Session active"
+                        : isLibre
+                        ? "Poste libre"
+                        : isOccupe
+                        ? "Poste occupé"
+                        : "Statut inconnu"}
+                    </h1>
+
+                    <p className="mt-5 max-w-2xl text-base font-semibold leading-8 text-white/90">
+                      {isCurrentEmployeeConnected
+                        ? "Vous êtes actuellement connecté au poste principal."
+                        : isLibre
+                        ? "Le poste principal est disponible. Vous pouvez envoyer une demande d'accès."
+                        : isOccupe
+                        ? "Le poste principal est occupé par une session RDP. Votre demande sera envoyée à l'utilisateur actif."
+                        : "Statut en cours de synchronisation avec le poste principal."}
                     </p>
-                    <p className="mt-2 font-black text-slate-800">
-                      {loadingStatus ? "Chargement..." : dateVerification}
-                    </p>
-                    <p className="mt-2 text-xs font-semibold text-slate-400">
-                      Mise a jour automatique toutes les 5 secondes.
-                    </p>
+
+                    <div className="mt-6 inline-flex items-center gap-2 rounded-2xl border border-white/20 bg-white/15 px-4 py-3 text-sm font-black text-white/90 backdrop-blur">
+                      <MonitorCheck className="h-5 w-5" />
+                      {sessions} session(s) active(s)
+                    </div>
                   </div>
                 </div>
               </div>
@@ -907,10 +895,10 @@ export default function EmployePage() {
 
                 <div>
                   <h2 className="text-3xl font-black text-slate-950">
-                    Demande d'acces
+                    Demande d'accès
                   </h2>
                   <p className="mt-1 text-sm font-medium text-slate-500">
-                    Votre demande sera envoyee avec le nom :{" "}
+                    Votre demande sera envoyée avec le nom :{" "}
                     <span className="font-black text-slate-900">
                       {employeName}
                     </span>
@@ -989,7 +977,7 @@ export default function EmployePage() {
                   onChange={(event) => setOptionalMessage(event.target.value)}
                   rows={4}
                   disabled={isCurrentEmployeeConnected}
-                  placeholder="Expliquez brievement votre besoin si necessaire"
+                  placeholder="Expliquez brièvement votre besoin si nécessaire"
                   className="w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
@@ -1008,10 +996,10 @@ export default function EmployePage() {
                   {requestLoading
                     ? "Traitement en cours..."
                     : isCurrentEmployeeConnected
-                    ? "Session deja active"
+                    ? "Session déjà active"
                     : requestWaiting || requestAuthorized
-                    ? "Demande deja envoyee"
-                    : "Demander l'acces"}
+                    ? "Demande déjà envoyée"
+                    : "Demander l'accès"}
                 </button>
 
                 {(requestWaiting || requestAuthorized) &&
@@ -1027,7 +1015,7 @@ export default function EmployePage() {
               </div>
 
               <p className="mt-3 text-center text-xs font-semibold text-slate-400">
-                Votre demande sera enregistree et visible par le responsable.
+                Votre demande sera enregistrée et visible par le responsable.
               </p>
 
               {(message || isCurrentEmployeeConnected) && (
@@ -1045,7 +1033,7 @@ export default function EmployePage() {
                   }`}
                 >
                   {isCurrentEmployeeConnected
-                    ? "Vous etes actuellement connecte au poste principal. Aucune nouvelle demande n'est necessaire."
+                    ? "Vous êtes actuellement connecté au poste principal. Aucune nouvelle demande n'est nécessaire."
                     : message}
                 </div>
               )}
@@ -1055,17 +1043,14 @@ export default function EmployePage() {
           <aside className="space-y-6">
             <section className="rounded-[2rem] bg-white p-6 shadow-xl shadow-slate-200/70 ring-1 ring-slate-200">
               <h3 className="text-2xl font-black text-slate-950">
-                Etat du poste principal
+                État du poste principal
               </h3>
 
               <div className="mt-6 space-y-4">
                 <InfoRow label="Sessions actives" value={String(sessions)} />
-                <InfoRow
-                  label="Utilisateur actuel"
-                  value={isLibre ? "Aucun" : currentUserText}
-                />
-                <InfoRow label="Derniere activite" value={lastActivityText} />
-                <InfoRow label="Derniere verification" value={dateVerification} />
+                <InfoRow label="Utilisateur actuel" value={isLibre ? "Aucun" : currentUserText} />
+                <InfoRow label="Dernière activité" value={lastActivityText} />
+                <InfoRow label="Dernière vérification" value={dateVerification} />
               </div>
             </section>
 
@@ -1077,17 +1062,17 @@ export default function EmployePage() {
 
                 <div>
                   <h3 className="text-2xl font-black text-blue-950">
-                    Acces exclusif
+                    Accès exclusif
                   </h3>
 
                   <p className="mt-3 text-sm font-medium leading-7 text-blue-800">
-                    Pour des raisons de securite et de performance, une seule
-                    personne peut acceder au poste principal a la fois.
+                    Pour des raisons de sécurité et de performance, une seule
+                    personne peut accéder au poste principal à la fois.
                   </p>
 
                   <p className="mt-3 text-sm font-medium leading-7 text-blue-800">
-                    Si le poste est occupe, votre demande sera mise en attente et
-                    l'utilisateur actif sera notifie.
+                    Si le poste est occupé, votre demande sera mise en attente et
+                    l'utilisateur actif sera notifié.
                   </p>
                 </div>
               </div>
@@ -1120,7 +1105,7 @@ export default function EmployePage() {
               </button>
 
               <p className="mt-3 text-center text-xs font-semibold opacity-70">
-                Connexion securisee via le protocole RDP
+                Connexion sécurisée via le protocole RDP
               </p>
             </section>
           </aside>

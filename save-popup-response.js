@@ -5,6 +5,7 @@ const Database = require("better-sqlite3");
 const DB_PATH = "C:\\Logs\\rdp_access.db";
 const RESPONSE_DIR = "C:\\Logs\\RDP_Request_Responses";
 const CURRENT_POPUP_FILE = path.join(RESPONSE_DIR, "popup-current.json");
+const SESSION_OWNER_FILE = path.join(RESPONSE_DIR, "session-owner.json");
 
 function safeDelete(filePath) {
   try {
@@ -13,9 +14,15 @@ function safeDelete(filePath) {
 }
 
 function ensureColumn(db, tableName, columnName, columnType) {
-  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all().map((c) => c.name);
+  const columns = db
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all()
+    .map((c) => c.name);
+
   if (!columns.includes(columnName)) {
-    db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType}`).run();
+    db.prepare(
+      `ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnType}`
+    ).run();
   }
 }
 
@@ -23,6 +30,173 @@ function ensureSchema(db) {
   ensureColumn(db, "access_requests", "current_user_response", "TEXT DEFAULT ''");
   ensureColumn(db, "access_requests", "response_message", "TEXT DEFAULT ''");
   ensureColumn(db, "access_requests", "response_at", "TEXT DEFAULT ''");
+  ensureColumn(db, "access_requests", "active_user_name", "TEXT DEFAULT ''");
+}
+
+function normalize(value) {
+  return String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function isBadName(value) {
+  const text = normalize(value);
+
+  if (!text) return true;
+  if (text === "n/a") return true;
+  if (text === "-") return true;
+  if (text === "unknown") return true;
+  if (text === "utilisateur inconnu") return true;
+  if (text === "utilisateur actif non identifie") return true;
+  if (text === "session rdp active") return true;
+  if (text.includes("utilisateur actuellement connecte")) return true;
+  if (text.includes("actuellement connecte")) return true;
+  if (text.includes("non identifie")) return true;
+  if (text.includes("acces direct non identifie")) return true;
+
+  return false;
+}
+
+function cleanName(value) {
+  const name = String(value || "").trim();
+  if (isBadName(name)) return "";
+  return name;
+}
+
+function readJsonFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return null;
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function getSessionOwnerName() {
+  const owner = readJsonFile(SESSION_OWNER_FILE);
+  if (!owner) return "";
+
+  return (
+    cleanName(owner.name) ||
+    cleanName(owner.full_name) ||
+    cleanName(owner.user) ||
+    cleanName(owner.username) ||
+    cleanName(owner.utilisateur) ||
+    cleanName(owner.employeeName) ||
+    ""
+  );
+}
+
+function getCurrentPopupOwnerName() {
+  const current = readJsonFile(CURRENT_POPUP_FILE);
+  if (!current) return "";
+
+  return (
+    cleanName(current.activeUserName) ||
+    cleanName(current.active_user_name) ||
+    cleanName(current.currentUser) ||
+    cleanName(current.current_user) ||
+    cleanName(current.ownerName) ||
+    cleanName(current.owner_name) ||
+    cleanName(current.responderName) ||
+    cleanName(current.responder_name) ||
+    cleanName(current.sessionOwner) ||
+    cleanName(current.session_owner) ||
+    ""
+  );
+}
+
+function getDbActiveUserName(db, id) {
+  try {
+    const row = db
+      .prepare(
+        `
+        SELECT active_user_name
+        FROM access_requests
+        WHERE id = ?
+        LIMIT 1
+        `
+      )
+      .get(id);
+
+    return cleanName(row && row.active_user_name);
+  } catch {
+    return "";
+  }
+}
+
+function getLastAuthorizedUserName(db, currentRequestId) {
+  try {
+    const rows = db
+      .prepare(
+        `
+        SELECT Utilisateur, active_user_name, response_message, response_at, id
+        FROM access_requests
+        WHERE id < ?
+        AND status = 'authorized'
+        ORDER BY id DESC
+        LIMIT 20
+        `
+      )
+      .all(currentRequestId);
+
+    for (const row of rows) {
+      const fromActiveName = cleanName(row.active_user_name);
+      if (fromActiveName) return fromActiveName;
+
+      const fromUser = cleanName(row.Utilisateur);
+      if (fromUser) return fromUser;
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+function getLastRdpEventUserName(db) {
+  try {
+    const rows = db
+      .prepare(
+        `
+        SELECT utilisateur, action, id
+        FROM rdp_events
+        ORDER BY id DESC
+        LIMIT 30
+        `
+      )
+      .all();
+
+    for (const row of rows) {
+      const action = normalize(row.action);
+      const user = cleanName(row.utilisateur);
+
+      if (!user) continue;
+      if (action.includes("deconnect")) continue;
+      if (action.includes("deconnexion")) continue;
+      if (action.includes("connexion") || action.includes("reconnexion")) {
+        return user;
+      }
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+function getResponderName(db, id) {
+  const name =
+    getSessionOwnerName() ||
+    getCurrentPopupOwnerName() ||
+    getDbActiveUserName(db, id) ||
+    getLastAuthorizedUserName(db, id) ||
+    getLastRdpEventUserName(db) ||
+    "";
+
+  return cleanName(name) || "utilisateur actif non identifie";
 }
 
 function readResponseFiles() {
@@ -34,25 +208,34 @@ function readResponseFiles() {
     .map((name) => {
       const id = Number(name.match(/^request_(\d+)\.txt$/i)[1]);
       const filePath = path.join(RESPONSE_DIR, name);
-      const answer = String(fs.readFileSync(filePath, "utf8") || "").trim().toUpperCase();
+      const answer = String(fs.readFileSync(filePath, "utf8") || "")
+        .trim()
+        .toUpperCase();
 
       return { id, filePath, answer };
     });
 }
 
 function updateRequest(db, id, answer) {
+  const responderName = getResponderName(db, id);
+
   if (answer === "YES") {
     db.prepare(
       `
       UPDATE access_requests
-      SET current_user_response = 'accepted_release',
-          response_message = 'L utilisateur actuellement connecte a accepte de liberer la session.',
+      SET current_user_response = 'accepted',
+          active_user_name = ?,
+          response_message = ?,
           response_at = datetime('now', 'localtime'),
           status = 'authorized'
       WHERE id = ?
       AND status IN ('pending', 'waiting_current_user')
       `
-    ).run(id);
+    ).run(
+      responderName,
+      `Demande acceptee par ${responderName}.`,
+      id
+    );
 
     return "YES";
   }
@@ -62,13 +245,18 @@ function updateRequest(db, id, answer) {
       `
       UPDATE access_requests
       SET current_user_response = 'refused_release',
-          response_message = 'Demande refusee par l utilisateur actuellement connecte.',
+          active_user_name = ?,
+          response_message = ?,
           response_at = datetime('now', 'localtime'),
           status = 'rejected'
       WHERE id = ?
       AND status IN ('pending', 'waiting_current_user')
       `
-    ).run(id);
+    ).run(
+      responderName,
+      `Demande refusee par ${responderName}.`,
+      id
+    );
 
     return "NO";
   }
@@ -78,13 +266,18 @@ function updateRequest(db, id, answer) {
       `
       UPDATE access_requests
       SET current_user_response = 'timeout',
-          response_message = 'Aucune reponse recue. La demande a ete refusee automatiquement.',
+          active_user_name = ?,
+          response_message = ?,
           response_at = datetime('now', 'localtime'),
           status = 'rejected'
       WHERE id = ?
       AND status IN ('pending', 'waiting_current_user')
       `
-    ).run(id);
+    ).run(
+      responderName,
+      `Aucune reponse recue de ${responderName}. La demande a ete refusee automatiquement.`,
+      id
+    );
 
     return "TIMEOUT";
   }
@@ -114,9 +307,7 @@ function main() {
 
     safeDelete(item.filePath);
 
-    const current = fs.existsSync(CURRENT_POPUP_FILE)
-      ? JSON.parse(fs.readFileSync(CURRENT_POPUP_FILE, "utf8"))
-      : null;
+    const current = readJsonFile(CURRENT_POPUP_FILE);
 
     if (current && Number(current.requestId) === Number(item.id)) {
       safeDelete(CURRENT_POPUP_FILE);
