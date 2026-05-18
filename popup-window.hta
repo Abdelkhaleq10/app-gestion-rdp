@@ -1,0 +1,331 @@
+<html>
+<head>
+  <title>RDP HTA POPUP</title>
+
+  <HTA:APPLICATION
+    ID="RDP_HTA_POPUP_APP"
+    APPLICATIONNAME="RDP_HTA_POPUP"
+    BORDER="thin"
+    CAPTION="yes"
+    SHOWINTASKBAR="yes"
+    SINGLEINSTANCE="yes"
+    SYSMENU="yes"
+    WINDOWSTATE="normal"
+    SCROLL="no"
+  />
+
+  <meta http-equiv="x-ua-compatible" content="IE=9" />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 520px;
+      height: 345px;
+      overflow: hidden;
+      background: #f4f7fb;
+      font-family: Segoe UI, Arial, sans-serif;
+      color: #0f172a;
+    }
+
+    .window {
+      width: 490px;
+      height: 315px;
+      margin: 12px auto;
+      background: #ffffff;
+      border: 1px solid #d7e2f0;
+      border-radius: 16px;
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.18);
+      overflow: hidden;
+    }
+
+    .header {
+      height: 74px;
+      background: linear-gradient(135deg, #0f4c81, #2563eb);
+      color: #ffffff;
+      padding: 16px 18px;
+      box-sizing: border-box;
+    }
+
+    .brand {
+      font-size: 12px;
+      font-weight: 700;
+      opacity: 0.9;
+      letter-spacing: 0.3px;
+      margin-bottom: 5px;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .content {
+      padding: 16px 18px 12px 18px;
+    }
+
+    .details {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .row {
+      font-size: 13px;
+      line-height: 1.55;
+      color: #334155;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .row b {
+      color: #0f172a;
+      display: inline-block;
+      width: 72px;
+      font-weight: 800;
+    }
+
+    .question {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f172a;
+      margin-top: 10px;
+      margin-bottom: 10px;
+    }
+
+    .actions {
+      text-align: center;
+      margin-top: 8px;
+    }
+
+    button {
+      width: 116px;
+      height: 36px;
+      border: 0;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      margin: 0 7px;
+    }
+
+    .yes {
+      background: #16a34a;
+      color: #ffffff;
+    }
+
+    .no {
+      background: #dc2626;
+      color: #ffffff;
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: default;
+    }
+
+    .footer {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 11px;
+      color: #64748b;
+      font-weight: 700;
+    }
+
+    .sending {
+      display: none;
+      margin-top: 6px;
+      text-align: center;
+      font-size: 12px;
+      color: #16a34a;
+      font-weight: 800;
+    }
+  </style>
+
+  <script language="javascript">
+    var fso = new ActiveXObject("Scripting.FileSystemObject");
+
+    var responseDir = "C:\\Logs\\RDP_Request_Responses";
+    var currentPopupFile = responseDir + "\\popup-current.json";
+
+    var requestId = 0;
+    var popupToken = "";
+    var secondsLeft = 60;
+    var answered = false;
+    var timerInterval = null;
+    var currentInterval = null;
+
+    function readText(filePath) {
+      var file = fso.OpenTextFile(filePath, 1, false);
+      var text = file.ReadAll();
+      file.Close();
+      return text;
+    }
+
+    function writeText(filePath, text) {
+      var file = fso.CreateTextFile(filePath, true);
+      file.Write(text);
+      file.Close();
+    }
+
+    function parseJson(text) {
+      return eval("(" + text + ")");
+    }
+
+    function htmlEscape(value) {
+      value = String(value || "");
+      value = value.replace(/&/g, "&amp;");
+      value = value.replace(/</g, "&lt;");
+      value = value.replace(/>/g, "&gt;");
+      value = value.replace(/"/g, "&quot;");
+      return value;
+    }
+
+    function clean(value, fallback) {
+      value = String(value || "").replace(/^\s+|\s+$/g, "");
+      if (!value) return fallback || "-";
+      return value;
+    }
+
+    function setText(id, value) {
+      document.getElementById(id).innerHTML = htmlEscape(value);
+    }
+
+    function closePopup() {
+      try {
+        if (timerInterval) clearInterval(timerInterval);
+        if (currentInterval) clearInterval(currentInterval);
+      } catch (e) {}
+      window.close();
+    }
+
+    function loadPopup() {
+      try {
+        if (!fso.FileExists(currentPopupFile)) {
+          closePopup();
+          return;
+        }
+
+        var current = parseJson(readText(currentPopupFile));
+
+        requestId = parseInt(current.requestId, 10);
+        popupToken = String(current.popupToken || "");
+
+        setText("employee", clean(current.employee, "Utilisateur"));
+        setText("priority", clean(current.priority, "-"));
+        setText("reason", clean(current.reason || current.priority, "-"));
+        setText("message", clean(current.message, "-"));
+
+        window.resizeTo(535, 390);
+        window.moveTo(
+          Math.max(0, (screen.width - 535) / 2),
+          Math.max(0, (screen.height - 390) / 2)
+        );
+        window.focus();
+      } catch (e) {
+        closePopup();
+      }
+    }
+
+    function checkStillCurrent() {
+      try {
+        if (!fso.FileExists(currentPopupFile)) {
+          closePopup();
+          return;
+        }
+
+        var current = parseJson(readText(currentPopupFile));
+
+        if (parseInt(current.requestId, 10) !== requestId) {
+          closePopup();
+          return;
+        }
+
+        if (String(current.popupToken || "") !== popupToken) {
+          closePopup();
+          return;
+        }
+      } catch (e) {
+        closePopup();
+      }
+    }
+
+    function disableButtons() {
+      document.getElementById("yesBtn").disabled = true;
+      document.getElementById("noBtn").disabled = true;
+    }
+
+    function sendAnswer(answer) {
+      if (answered) return;
+      answered = true;
+
+      try {
+        disableButtons();
+        document.getElementById("sending").style.display = "block";
+
+        var responseFile = responseDir + "\\request_" + requestId + ".txt";
+        writeText(responseFile, answer);
+      } catch (e) {}
+
+      window.setTimeout(function () {
+        closePopup();
+      }, 250);
+    }
+
+    function tick() {
+      if (answered) return;
+
+      checkStillCurrent();
+
+      secondsLeft = secondsLeft - 1;
+      if (secondsLeft < 0) secondsLeft = 0;
+
+      document.getElementById("timer").innerHTML =
+        "Expiration automatique dans " + secondsLeft + " secondes";
+
+      if (secondsLeft <= 0) {
+        sendAnswer("TIMEOUT");
+      }
+    }
+
+    window.onload = function () {
+      loadPopup();
+      currentInterval = setInterval(checkStillCurrent, 500);
+      timerInterval = setInterval(tick, 1000);
+    };
+  </script>
+</head>
+
+<body>
+  <div class="window">
+    <div class="header">
+      <div class="brand">SRM-SM | Gestion d'acces RDP</div>
+      <div class="title">Demande d'acces au poste principal</div>
+    </div>
+
+    <div class="content">
+      <div class="details">
+        <div class="row"><b>Employe :</b> <span id="employee">...</span></div>
+        <div class="row"><b>Priorite :</b> <span id="priority">...</span></div>
+        <div class="row"><b>Motif :</b> <span id="reason">...</span></div>
+        <div class="row"><b>Message :</b> <span id="message">...</span></div>
+      </div>
+
+      <div class="question">Voulez-vous liberer la session actuelle ?</div>
+
+      <div class="actions">
+        <button id="yesBtn" class="yes" onclick="sendAnswer('YES')">Oui</button>
+        <button id="noBtn" class="no" onclick="sendAnswer('NO')">Non</button>
+      </div>
+
+      <div id="sending" class="sending">Reponse envoyee...</div>
+      <div id="timer" class="footer">Expiration automatique dans 60 secondes</div>
+    </div>
+  </div>
+</body>
+</html>

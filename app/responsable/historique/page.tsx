@@ -1,590 +1,439 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import ResponsableGuard from "../../../components/ResponsableGuard";
-import ResponsableNav from "../../../components/ResponsableNav";
-
-const PAGE_SIZE = 20;
+import { useEffect, useMemo, useState } from "react";
+import ResponsableNav from "@/components/ResponsableNav";
 
 type HistoryItem = {
   id: number;
   date: string;
   heure: string;
   utilisateur: string;
-  sessionId: string;
-  nomSession: string;
+  session: string;
+  nomSession?: string;
   ip: string;
   typeIP: string;
   action: string;
-  sessionActive: string;
+  refDb: string;
 };
 
 type HistoryResponse = {
-  success?: boolean;
+  success: boolean;
   items?: HistoryItem[];
+  rows?: HistoryItem[];
   data?: HistoryItem[];
   history?: HistoryItem[];
-  events?: HistoryItem[];
-  rows?: HistoryItem[];
-  total: number;
-  page: number;
+  total?: number;
+  page?: number;
   pageSize?: number;
-  limit?: number;
-  totalPages: number;
+  totalPages?: number;
+  generatedAt?: string;
+  message?: string;
 };
 
-function actionBadgeClass(action: string) {
+function getItems(data: HistoryResponse): HistoryItem[] {
+  if (Array.isArray(data.items)) return data.items;
+  if (Array.isArray(data.rows)) return data.rows;
+  if (Array.isArray(data.data)) return data.data;
+  if (Array.isArray(data.history)) return data.history;
+
+  return [];
+}
+
+function getActionStyle(action: string) {
   const value = String(action || "").toLowerCase();
 
-  if (value.includes("autorisée") || value.includes("autorisée")) {
-    return "bg-green-100 text-green-700 border-green-200";
-  }
-
-  if (value.includes("refusée") || value.includes("refusée")) {
-    return "bg-red-100 text-red-700 border-red-200";
-  }
-
   if (value.includes("reconnexion")) {
-    return "bg-blue-100 text-blue-700 border-blue-200";
-  }
-
-  if (value.includes("déconnexion") || value.includes("déconnexion")) {
-    return "bg-red-100 text-red-700 border-red-200";
-  }
-
-  if (value.includes("session déconnectée") || value.includes("session déconnectée")) {
-    return "bg-slate-100 text-slate-700 border-slate-200";
+    return "bg-blue-50 text-blue-700 ring-blue-200";
   }
 
   if (value.includes("connexion")) {
-    return "bg-green-100 text-green-700 border-green-200";
+    return "bg-emerald-50 text-emerald-700 ring-emerald-200";
   }
 
-  return "bg-slate-100 text-slate-700 border-slate-200";
-}
-
-function typeIpBadgeClass(typeIP: string) {
-  const value = String(typeIP || "").toLowerCase();
-
-  if (value.includes("distante")) {
-    return "bg-blue-50 text-blue-700 border-blue-100";
+  if (value.includes("deconnect")) {
+    return "bg-slate-100 text-slate-700 ring-slate-200";
   }
 
-  if (value.includes("locale")) {
-    return "bg-purple-50 text-purple-700 border-purple-100";
+  if (value.includes("autorisee") || value.includes("autorise")) {
+    return "bg-emerald-50 text-emerald-700 ring-emerald-200";
   }
 
-  return "bg-slate-50 text-slate-600 border-slate-100";
+  if (value.includes("refuse")) {
+    return "bg-red-50 text-red-700 ring-red-200";
+  }
+
+  return "bg-slate-100 text-slate-700 ring-slate-200";
 }
 
 function getInitials(name: string) {
-  const clean = String(name || "").trim();
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
 
-  if (!clean || clean === "N/A" || clean.includes("Accès direct")) {
-    return "AD";
-  }
-
-  const parts = clean.split(" ").filter(Boolean);
-
-  if (parts.length === 1) {
-    return parts[0].slice(0, 2).toUpperCase();
-  }
+  if (parts.length === 0) return "NA";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
 
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
-function getActionIcon(action: string) {
-  const value = String(action || "").toLowerCase();
-
-  if (value.includes("reconnexion")) return "↻";
-  if (value.includes("déconnexion") || value.includes("déconnectée")) return "⏻";
-  if (value.includes("autorisée")) return "✓";
-  if (value.includes("refusée")) return "!";
-  if (value.includes("connexion")) return "→";
-
-  return "•";
-}
-
-export default function HistoriquePage() {
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+export default function HistoriqueRdpPage() {
+  const [items, setItems] = useState<HistoryItem[]>([]);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [totalPages, setTotalPages] = useState(1);
 
   const [search, setSearch] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [actionFilter, setActionFilter] = useState("");
-  const [typeIpFilter, setTypeIpFilter] = useState("");
-  const [dateFilter, setDateFilter] = useState("");
-  const [sort, setSort] = useState("recent");
+  const [date, setDate] = useState("");
+  const [action, setAction] = useState("");
+  const [typeIP, setTypeIP] = useState("");
 
-  async function loadHistory(currentPage: number) {
+  const [loading, setLoading] = useState(true);
+  const [lastRefresh, setLastRefresh] = useState("");
+  const [error, setError] = useState("");
+
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+
+    params.set("page", String(page));
+    params.set("pageSize", String(pageSize));
+    params.set("sort", "recent");
+
+    if (search.trim()) params.set("search", search.trim());
+    if (date.trim()) params.set("date", date.trim());
+    if (action.trim()) params.set("action", action.trim());
+    if (typeIP.trim()) params.set("typeIP", typeIP.trim());
+
+    return params.toString();
+  }, [page, pageSize, search, date, action, typeIP]);
+
+  async function loadHistory(showLoader = false) {
     try {
-      setLoading(true);
+      if (showLoader) setLoading(true);
+      setError("");
 
-      const params = new URLSearchParams({
-        page: String(currentPage),
-        pageSize: String(PAGE_SIZE),
-        search,
-        action: actionFilter,
-        typeIP: typeIpFilter,
-        date: dateFilter,
-        sort,
-      });
-
-      const res = await fetch(`/api/history?${params.toString()}`, {
+      const response = await fetch(`/api/history?${queryString}`, {
         cache: "no-store",
+        headers: {
+          "Cache-Control": "no-store",
+          Pragma: "no-cache",
+        },
       });
 
-      const data: HistoryResponse = await res.json();
+      const data: HistoryResponse = await response.json();
 
-      const items =
-        Array.isArray(data.items)
-          ? data.items
-          : Array.isArray(data.data)
-          ? data.data
-          : Array.isArray(data.history)
-          ? data.history
-          : Array.isArray(data.events)
-          ? data.events
-          : Array.isArray(data.rows)
-          ? data.rows
-          : [];
+      const nextItems = getItems(data);
 
-      setHistory(items);
-      setPage(data.page || currentPage || 1);
-      setTotalPages(data.totalPages || 1);
-      setTotal(data.total || items.length || 0);
-    } catch (error) {
-      console.error("Erreur chargement historique :", error);
-      setHistory([]);
-      setTotalPages(1);
-      setTotal(0);
+      setItems(nextItems);
+      setTotal(Number(data.total || nextItems.length || 0));
+      setTotalPages(Number(data.totalPages || 1));
+      setLastRefresh(new Date().toLocaleTimeString("fr-FR"));
+
+      if (!response.ok || data.success === false) {
+        setError(data.message || "Erreur lors du chargement de l'historique.");
+      }
+    } catch (err) {
+      console.error("Erreur historique :", err);
+      setError("Erreur lors du chargement de l'historique.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadHistory(page);
-  }, [page, search, actionFilter, typeIpFilter, dateFilter, sort]);
+    loadHistory(true);
 
-  function handleSearch() {
-    setPage(1);
-    setSearch(searchInput.trim());
-  }
+    const interval = setInterval(() => {
+      loadHistory(false);
+    }, 2000);
 
-  function handleReset() {
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryString]);
+
+  function resetFilters() {
     setSearch("");
-    setSearchInput("");
-    setActionFilter("");
-    setTypeIpFilter("");
-    setDateFilter("");
-    setSort("recent");
+    setDate("");
+    setAction("");
+    setTypeIP("");
     setPage(1);
   }
 
-  function displayNumber(index: number) {
-    const positionInAllResults = (page - 1) * PAGE_SIZE + index;
-
-    if (sort === "oldest") {
-      return positionInAllResults + 1;
-    }
-
-    return total - positionInAllResults;
+  function nextPage() {
+    setPage((current) => Math.min(current + 1, totalPages));
   }
 
-  function exportUrl() {
-    const params = new URLSearchParams({
-      search,
-      action: actionFilter,
-      typeIP: typeIpFilter,
-      date: dateFilter,
-      sort,
-    });
-
-    return `/api/export-history?${params.toString()}`;
+  function previousPage() {
+    setPage((current) => Math.max(current - 1, 1));
   }
-
-  const connexionCount = history.filter((item) =>
-    String(item.action || "").toLowerCase().includes("connexion")
-  ).length;
-
-  const deconnexionCount = history.filter((item) => {
-    const value = String(item.action || "").toLowerCase();
-    return value.includes("déconnexion") || value.includes("déconnectée");
-  }).length;
-
-  const demandeCount = history.filter((item) =>
-    String(item.action || "").toLowerCase().includes("demande")
-  ).length;
 
   return (
-    <ResponsableGuard>
-      <main className="min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-100">
-        <header className="bg-blue-950 text-white shadow-lg">
-          <div className="max-w-7xl mx-auto px-6 py-4 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl border border-white/20 bg-white/10 flex items-center justify-center text-xl">
-                🖥️
-              </div>
+    <main className="min-h-screen bg-slate-50 text-slate-900">
+      <ResponsableNav active="historique" />
 
-              <div>
-                <p className="font-bold text-lg">SRM-SM</p>
-                <p className="text-xs text-blue-200">Interface responsable</p>
-              </div>
-            </div>
-
-            <div className="text-center">
-              <h1 className="text-xl md:text-2xl font-black">
-                Gestion d'accès RDP
-              </h1>
-            </div>
-
-            <div className="flex items-center justify-start md:justify-end gap-3">
-              <div className="hidden sm:flex h-10 w-10 rounded-full bg-blue-700 items-center justify-center font-black">
-                RM
-              </div>
-
-              <div className="text-left md:text-right">
-                <p className="text-xs text-blue-200">Espace responsable</p>
-                <p className="font-bold leading-tight">Responsable</p>
-              </div>
-
-              <a
-                href="/responsable/logout"
-                className="rounded-xl bg-white/10 hover:bg-white/20 px-4 py-2 font-semibold transition"
-              >
-                Déconnexion
-              </a>
-            </div>
-          </div>
-        </header>
-
-        <section className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <p className="text-sm font-bold text-slate-500">Total historique</p>
-              <p className="text-4xl font-black text-blue-700 mt-2">{total}</p>
-              <p className="text-sm text-slate-400 mt-3">
-                Événements RDP + demandes
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <p className="text-sm font-bold text-slate-500">
-                Connexions/Reconnexions
-              </p>
-              <p className="text-4xl font-black text-green-700 mt-2">
-                {connexionCount}
-              </p>
-              <p className="text-sm text-slate-400 mt-3">
-                Affichées sur cette page
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <p className="text-sm font-bold text-slate-500">Déconnexions</p>
-              <p className="text-4xl font-black text-red-700 mt-2">
-                {deconnexionCount}
-              </p>
-              <p className="text-sm text-slate-400 mt-3">
-                Affichées sur cette page
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <p className="text-sm font-bold text-slate-500">Demandes</p>
-              <p className="text-4xl font-black text-purple-700 mt-2">
-                {demandeCount}
-              </p>
-              <p className="text-sm text-slate-400 mt-3">
-                Autorisées ou refusées
-              </p>
-            </div>
-          </div>
-
-          <ResponsableNav />
-
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <section className="mx-auto max-w-7xl px-5 py-8">
+        <div className="mb-6 rounded-[2rem] bg-white p-6 shadow-xl shadow-slate-200/70 ring-1 ring-slate-200">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h2 className="text-3xl font-black text-slate-800">
+              <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                Responsable
+              </p>
+
+              <h1 className="mt-2 text-3xl font-black text-slate-950">
                 Historique RDP
-              </h2>
-              <p className="text-slate-500 mt-1">
-                Consultation, recherche, filtrage et export des connexions RDP
-                et des demandes d'accès.
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm font-medium leading-6 text-slate-500">
+                Journal complet des connexions, reconnexions et deconnexions RDP.
+                Mise a jour automatique toutes les 2 secondes.
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="rounded-2xl bg-blue-50 px-5 py-4 ring-1 ring-blue-100">
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-blue-500">
+                Derniere actualisation
+              </p>
+              <p className="mt-1 text-lg font-black text-blue-900">
+                {lastRefresh || "Chargement..."}
+              </p>
+            </div>
+          </div>
+        </div>
 
-              <a
-                href={exportUrl()}
-                className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 font-black shadow-lg shadow-emerald-100"
+        <div className="mb-6 rounded-[2rem] bg-white p-6 shadow-xl shadow-slate-200/70 ring-1 ring-slate-200">
+          <div className="grid gap-4 lg:grid-cols-[1.3fr_0.8fr_0.8fr_0.8fr_auto]">
+            <div>
+              <label className="mb-2 block text-sm font-black text-slate-700">
+                Recherche
+              </label>
+              <input
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Utilisateur, IP, action..."
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-black text-slate-700">
+                Date
+              </label>
+              <input
+                value={date}
+                onChange={(event) => {
+                  setDate(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="Ex : 15/05/2026"
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-black text-slate-700">
+                Action
+              </label>
+              <select
+                value={action}
+                onChange={(event) => {
+                  setAction(event.target.value);
+                  setPage(1);
+                }}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
               >
-                Export CSV
-              </a>
+                <option value="">Toutes</option>
+                <option value="connexion">Connexion</option>
+                <option value="reconnexion">Reconnexion</option>
+                <option value="deconnectee">Session deconnectee</option>
+                <option value="autorisee">Demande autorisee</option>
+                <option value="refusee">Demande refusee</option>
+              </select>
             </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-black text-slate-700">
+                Type IP
+              </label>
+              <select
+                value={typeIP}
+                onChange={(event) => {
+                  setTypeIP(event.target.value);
+                  setPage(1);
+                }}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              >
+                <option value="">Tous</option>
+                <option value="Distante">Distante</option>
+                <option value="Locale">Locale</option>
+              </select>
+            </div>
+
+            <button
+              onClick={resetFilters}
+              className="rounded-2xl bg-slate-900 px-6 py-3 font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-slate-800 lg:mt-7"
+            >
+              Reinitialiser
+            </button>
           </div>
+        </div>
 
-          <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-              <div className="xl:col-span-2">
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Recherche
-                </label>
+        <div className="overflow-hidden rounded-[2rem] bg-white shadow-xl shadow-slate-200/70 ring-1 ring-slate-200">
+          <div className="flex flex-col gap-4 border-b border-slate-100 p-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="text-2xl font-black text-slate-950">
+                Journal complet
+              </h2>
 
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    placeholder="Utilisateur, IP, session, action..."
-                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                  />
-
-                  <button
-                    onClick={handleSearch}
-                    className="rounded-2xl bg-blue-700 hover:bg-blue-800 text-white font-black px-5 py-3"
-                  >
-                    Rechercher
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Action
-                </label>
-
-                <select
-                  value={actionFilter}
-                  onChange={(e) => {
-                    setActionFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                >
-                  <option value="">Toutes</option>
-                  <option value="Connexion">Connexion</option>
-                  <option value="Deconnexion">Déconnexion</option>
-                  <option value="Reconnexion">Reconnexion</option>
-                  <option value="Session deconnectee">Session déconnectée</option>
-                  <option value="Demande autorisee">Demande autorisée</option>
-                  <option value="Demande refusee">Demande refusée</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Type IP
-                </label>
-
-                <select
-                  value={typeIpFilter}
-                  onChange={(e) => {
-                    setTypeIpFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                >
-                  <option value="">Tous</option>
-                  <option value="Distante">Distante</option>
-                  <option value="Locale">Locale</option>
-                  <option value="Inconnue">Inconnue</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Tri
-                </label>
-
-                <select
-                  value={sort}
-                  onChange={(e) => {
-                    setSort(e.target.value);
-                    setPage(1);
-                  }}
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                >
-                  <option value="recent">Plus récent</option>
-                  <option value="oldest">Plus ancien</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-[250px_auto] gap-4 mt-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-2">
-                  Date
-                </label>
-
-                <input
-                  type="text"
-                  value={dateFilter}
-                  onChange={(e) => {
-                    setDateFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="Ex : 00/00/0000"
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-slate-800 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-100"
-                />
-              </div>
-
-              <div className="flex items-end">
-                <button
-                  onClick={handleReset}
-                  className="rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-black px-5 py-3"
-                >
-                  Réinitialiser les filtres
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-black text-slate-800">
-                  Journal complet
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">
-                  Total des lignes : {total}
-                </p>
-              </div>
-
-              <p className="text-sm text-slate-500 font-bold">
-                Page {page} / {totalPages}
+              <p className="mt-1 text-sm font-medium text-slate-500">
+                Total des lignes :{" "}
+                <span className="font-black text-slate-800">{total}</span>
               </p>
             </div>
 
-            {loading ? (
-              <div className="px-6 py-10 text-slate-500">Chargement...</div>
-            ) : history.length === 0 ? (
-              <div className="px-6 py-10 text-slate-500">
-                Aucun historique RDP trouvé.
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-slate-50 text-slate-600">
-                      <tr>
-                        <th className="text-left px-6 py-4">N°</th>
-                        <th className="text-left px-6 py-4">Date</th>
-                        <th className="text-left px-6 py-4">Heure</th>
-                        <th className="text-left px-6 py-4">Utilisateur</th>
-                        <th className="text-left px-6 py-4">Session</th>
-                        <th className="text-left px-6 py-4">IP</th>
-                        <th className="text-left px-6 py-4">Type IP</th>
-                        <th className="text-left px-6 py-4">Action</th>
-                        <th className="text-left px-6 py-4">Ref DB</th>
-                      </tr>
-                    </thead>
+            <div className="flex items-center gap-3">
+              {loading && (
+                <span className="rounded-full bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 ring-1 ring-blue-100">
+                  Actualisation...
+                </span>
+              )}
 
-                    <tbody className="divide-y divide-slate-100">
-                      {history.map((item, index) => (
-                        <tr
-                          key={`${item.id}-${item.date}-${item.heure}-${index}`}
-                          className="hover:bg-slate-50"
-                        >
-                          <td className="px-6 py-4 font-black text-slate-700">
-                            {displayNumber(index)}
-                          </td>
-
-                          <td className="px-6 py-4 text-slate-700">
-                            {item.date || "-"}
-                          </td>
-
-                          <td className="px-6 py-4 text-slate-700">
-                            {item.heure || "-"}
-                          </td>
-
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-blue-700 text-white flex items-center justify-center font-black">
-                                {getInitials(item.utilisateur || "N/A")}
-                              </div>
-
-                              <div>
-                                <p className="font-black text-slate-800">
-                                  {item.utilisateur || "-"}
-                                </p>
-                                <p className="text-xs text-slate-400">
-                                  Utilisateur
-                                </p>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="px-6 py-4 text-slate-700">
-                            {item.nomSession || "-"}
-                          </td>
-
-                          <td className="px-6 py-4 text-slate-700 font-semibold">
-                            {item.ip || "-"}
-                          </td>
-
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex border px-3 py-1 rounded-full text-xs font-black ${typeIpBadgeClass(
-                                item.typeIP || ""
-                              )}`}
-                            >
-                              {item.typeIP || "-"}
-                            </span>
-                          </td>
-
-                          <td className="px-6 py-4">
-                            <span
-                              className={`inline-flex items-center gap-2 border px-3 py-1 rounded-full text-xs font-black ${actionBadgeClass(
-                                item.action || ""
-                              )}`}
-                            >
-                              <span>{getActionIcon(item.action || "")}</span>
-                              {item.action || "-"}
-                            </span>
-                          </td>
-
-                          <td className="px-6 py-4 text-slate-400 font-semibold">
-                            #{item.id}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex items-center justify-center gap-3 px-6 py-6 border-t border-slate-100">
-                  <button
-                    onClick={() => setPage((p) => Math.max(p - 1, 1))}
-                    disabled={page === 1}
-                    className="px-5 py-3 rounded-2xl bg-slate-800 text-white font-black disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Précédent
-                  </button>
-
-                  <span className="px-5 py-3 rounded-2xl bg-blue-100 text-blue-700 font-black">
-                    {page}
-                  </span>
-
-                  <button
-                    onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-                    disabled={page === totalPages}
-                    className="px-5 py-3 rounded-2xl bg-slate-800 text-white font-black disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    Suivant
-                  </button>
-                </div>
-              </>
-            )}
+              <span className="rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-slate-700">
+                Page {page} / {totalPages}
+              </span>
+            </div>
           </div>
-        </section>
-      </main>
-    </ResponsableGuard>
+
+          {error && (
+            <div className="m-6 rounded-2xl bg-red-50 p-4 text-sm font-bold text-red-700 ring-1 ring-red-200">
+              {error}
+            </div>
+          )}
+
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1050px] border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-left text-sm font-black text-slate-700">
+                  <th className="px-6 py-5">N°</th>
+                  <th className="px-6 py-5">Date</th>
+                  <th className="px-6 py-5">Heure</th>
+                  <th className="px-6 py-5">Utilisateur</th>
+                  <th className="px-6 py-5">Session</th>
+                  <th className="px-6 py-5">IP</th>
+                  <th className="px-6 py-5">Type IP</th>
+                  <th className="px-6 py-5">Action</th>
+                  <th className="px-6 py-5">Ref DB</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {items.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="px-6 py-12 text-center text-sm font-bold text-slate-400"
+                    >
+                      Aucune ligne trouvee.
+                    </td>
+                  </tr>
+                ) : (
+                  items.map((item) => (
+                    <tr
+                      key={`${item.id}-${item.date}-${item.heure}-${item.refDb}`}
+                      className="border-t border-slate-100 transition hover:bg-slate-50"
+                    >
+                      <td className="px-6 py-5 text-sm font-black text-slate-800">
+                        {item.id}
+                      </td>
+
+                      <td className="px-6 py-5 text-sm font-semibold text-slate-700">
+                        {item.date}
+                      </td>
+
+                      <td className="px-6 py-5 text-sm font-semibold text-slate-700">
+                        {item.heure}
+                      </td>
+
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-700 text-sm font-black text-white">
+                            {getInitials(item.utilisateur)}
+                          </div>
+
+                          <div>
+                            <p className="font-black text-slate-950">
+                              {item.utilisateur}
+                            </p>
+                            <p className="text-xs font-semibold text-slate-400">
+                              Utilisateur
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-5 text-sm font-semibold text-slate-700">
+                        {item.session || item.nomSession || "-"}
+                      </td>
+
+                      <td className="px-6 py-5 text-sm font-black text-slate-800">
+                        {item.ip}
+                      </td>
+
+                      <td className="px-6 py-5">
+                        <span className="rounded-full bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 ring-1 ring-blue-100">
+                          {item.typeIP}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-5">
+                        <span
+                          className={`rounded-full px-4 py-2 text-xs font-black ring-1 ${getActionStyle(
+                            item.action
+                          )}`}
+                        >
+                          {item.action}
+                        </span>
+                      </td>
+
+                      <td className="px-6 py-5 text-sm font-black text-slate-400">
+                        {item.refDb}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-slate-100 p-6 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm font-semibold text-slate-500">
+              Mise a jour automatique active. Les nouveaux evenements apparaissent
+              sans recharger la page.
+            </p>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={previousPage}
+                disabled={page <= 1}
+                className="rounded-2xl bg-slate-100 px-5 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Precedent
+              </button>
+
+              <button
+                onClick={nextPage}
+                disabled={page >= totalPages}
+                className="rounded-2xl bg-blue-700 px-5 py-3 text-sm font-black text-white shadow-lg transition hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
