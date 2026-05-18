@@ -1,10 +1,10 @@
 <html>
 <head>
-  <title>RDP HTA POPUP</title>
+  <title>RDP DEMANDE ACCES</title>
 
   <HTA:APPLICATION
-    ID="RDP_HTA_POPUP_APP"
-    APPLICATIONNAME="RDP_HTA_POPUP"
+    ID="RDP_DEMANDE_ACCES"
+    APPLICATIONNAME="RDP_DEMANDE_ACCES"
     BORDER="thin"
     CAPTION="yes"
     SHOWINTASKBAR="yes"
@@ -20,130 +20,155 @@
     html, body {
       margin: 0;
       padding: 0;
-      width: 520px;
-      height: 345px;
+      width: 560px;
+      height: 430px;
       overflow: hidden;
-      background: #f4f7fb;
-      font-family: Segoe UI, Arial, sans-serif;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #eef4fb;
       color: #0f172a;
     }
 
-    .window {
-      width: 490px;
-      height: 315px;
-      margin: 12px auto;
+    .page {
+      width: 530px;
+      height: 395px;
+      margin: 14px auto;
       background: #ffffff;
-      border: 1px solid #d7e2f0;
-      border-radius: 16px;
-      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.18);
+      border: 1px solid #d5e3f5;
+      border-radius: 14px;
+      box-shadow: 0 16px 36px rgba(15, 23, 42, 0.20);
       overflow: hidden;
     }
 
     .header {
-      height: 74px;
-      background: linear-gradient(135deg, #0f4c81, #2563eb);
-      color: #ffffff;
-      padding: 16px 18px;
+      height: 82px;
+      background: #0b2a5b;
+      color: white;
+      padding: 16px 20px;
       box-sizing: border-box;
     }
 
     .brand {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
-      opacity: 0.9;
-      letter-spacing: 0.3px;
-      margin-bottom: 5px;
+      letter-spacing: 2px;
+      color: #bdd7ff;
+      text-transform: uppercase;
+      margin-bottom: 7px;
     }
 
     .title {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 800;
-      line-height: 1.2;
+      line-height: 24px;
+      color: #ffffff;
     }
 
     .content {
-      padding: 16px 18px 12px 18px;
+      padding: 16px 20px 14px 20px;
+      box-sizing: border-box;
     }
 
-    .details {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
+    .info {
+      background: #f8fbff;
+      border: 1px solid #dce8f7;
       border-radius: 12px;
-      padding: 10px 12px;
-      margin-bottom: 12px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
     }
 
     .row {
-      font-size: 13px;
-      line-height: 1.55;
+      font-size: 14px;
+      line-height: 24px;
       color: #334155;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .row b {
-      color: #0f172a;
+    .label {
       display: inline-block;
-      width: 72px;
+      width: 82px;
       font-weight: 800;
+      color: #0f172a;
+    }
+
+    .value {
+      color: #334155;
+      font-weight: 600;
     }
 
     .question {
       text-align: center;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 800;
-      color: #0f172a;
-      margin-top: 10px;
-      margin-bottom: 10px;
+      color: #0b2a5b;
+      margin: 12px 0 10px 0;
+    }
+
+    .notice {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 12px;
+      line-height: 17px;
+      text-align: center;
+      font-weight: 600;
+      margin-bottom: 14px;
     }
 
     .actions {
+      height: 48px;
       text-align: center;
-      margin-top: 8px;
+      margin-bottom: 8px;
     }
 
-    button {
-      width: 116px;
-      height: 36px;
+    .btn {
+      width: 135px;
+      height: 42px;
       border: 0;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 800;
+      border-radius: 11px;
+      color: white;
+      font-size: 16px;
+      font-weight: 900;
+      margin: 0 12px;
       cursor: pointer;
-      margin: 0 7px;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
     }
 
     .yes {
       background: #16a34a;
-      color: #ffffff;
     }
 
     .no {
       background: #dc2626;
-      color: #ffffff;
     }
 
-    button:disabled {
-      opacity: 0.65;
+    .btn:hover {
+      opacity: 0.92;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
       cursor: default;
     }
 
-    .footer {
-      margin-top: 10px;
-      text-align: center;
-      font-size: 11px;
-      color: #64748b;
-      font-weight: 700;
-    }
-
-    .sending {
+    .sent {
       display: none;
-      margin-top: 6px;
       text-align: center;
       font-size: 12px;
       color: #16a34a;
       font-weight: 800;
+      margin-top: 4px;
+    }
+
+    .timer {
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 700;
+      margin-top: 4px;
     }
   </style>
 
@@ -161,23 +186,30 @@
     var currentInterval = null;
 
     function readText(filePath) {
-      var file = fso.OpenTextFile(filePath, 1, false);
-      var text = file.ReadAll();
-      file.Close();
-      return text;
+      var f = fso.OpenTextFile(filePath, 1, false);
+      var t = f.ReadAll();
+      f.Close();
+      return t;
     }
 
     function writeText(filePath, text) {
-      var file = fso.CreateTextFile(filePath, true);
-      file.Write(text);
-      file.Close();
+      var f = fso.CreateTextFile(filePath, true);
+      f.Write(text);
+      f.Close();
     }
 
     function parseJson(text) {
       return eval("(" + text + ")");
     }
 
-    function htmlEscape(value) {
+    function clean(value, fallback) {
+      value = String(value || "");
+      value = value.replace(/^\s+|\s+$/g, "");
+      if (!value) return fallback || "-";
+      return value;
+    }
+
+    function esc(value) {
       value = String(value || "");
       value = value.replace(/&/g, "&amp;");
       value = value.replace(/</g, "&lt;");
@@ -186,17 +218,11 @@
       return value;
     }
 
-    function clean(value, fallback) {
-      value = String(value || "").replace(/^\s+|\s+$/g, "");
-      if (!value) return fallback || "-";
-      return value;
+    function setHtml(id, value) {
+      document.getElementById(id).innerHTML = esc(value);
     }
 
-    function setText(id, value) {
-      document.getElementById(id).innerHTML = htmlEscape(value);
-    }
-
-    function closePopup() {
+    function closeMe() {
       try {
         if (timerInterval) clearInterval(timerInterval);
         if (currentInterval) clearInterval(currentInterval);
@@ -207,51 +233,50 @@
     function loadPopup() {
       try {
         if (!fso.FileExists(currentPopupFile)) {
-          closePopup();
+          closeMe();
           return;
         }
 
-        var current = parseJson(readText(currentPopupFile));
+        var data = parseJson(readText(currentPopupFile));
 
-        requestId = parseInt(current.requestId, 10);
-        popupToken = String(current.popupToken || "");
+        requestId = parseInt(data.requestId, 10);
+        popupToken = String(data.popupToken || "");
 
-        setText("employee", clean(current.employee, "Utilisateur"));
-        setText("priority", clean(current.priority, "-"));
-        setText("reason", clean(current.reason || current.priority, "-"));
-        setText("message", clean(current.message, "-"));
+        setHtml("employee", clean(data.employee || data.Utilisateur || data.employee_name, "Utilisateur"));
+        setHtml("reason", clean(data.reason || data.priority, "-"));
+        setHtml("message", clean(data.message, "-"));
 
-        window.resizeTo(535, 390);
+        window.resizeTo(575, 465);
         window.moveTo(
-          Math.max(0, (screen.width - 535) / 2),
-          Math.max(0, (screen.height - 390) / 2)
+          Math.max(0, (screen.width - 575) / 2),
+          Math.max(0, (screen.height - 465) / 2)
         );
         window.focus();
       } catch (e) {
-        closePopup();
+        closeMe();
       }
     }
 
-    function checkStillCurrent() {
+    function checkCurrentPopup() {
       try {
         if (!fso.FileExists(currentPopupFile)) {
-          closePopup();
+          closeMe();
           return;
         }
 
-        var current = parseJson(readText(currentPopupFile));
+        var data = parseJson(readText(currentPopupFile));
 
-        if (parseInt(current.requestId, 10) !== requestId) {
-          closePopup();
+        if (parseInt(data.requestId, 10) !== requestId) {
+          closeMe();
           return;
         }
 
-        if (String(current.popupToken || "") !== popupToken) {
-          closePopup();
+        if (String(data.popupToken || "") !== popupToken) {
+          closeMe();
           return;
         }
       } catch (e) {
-        closePopup();
+        closeMe();
       }
     }
 
@@ -266,21 +291,21 @@
 
       try {
         disableButtons();
-        document.getElementById("sending").style.display = "block";
+        document.getElementById("sent").style.display = "block";
 
         var responseFile = responseDir + "\\request_" + requestId + ".txt";
         writeText(responseFile, answer);
       } catch (e) {}
 
       window.setTimeout(function () {
-        closePopup();
-      }, 250);
+        closeMe();
+      }, 300);
     }
 
     function tick() {
       if (answered) return;
 
-      checkStillCurrent();
+      checkCurrentPopup();
 
       secondsLeft = secondsLeft - 1;
       if (secondsLeft < 0) secondsLeft = 0;
@@ -295,36 +320,39 @@
 
     window.onload = function () {
       loadPopup();
-      currentInterval = setInterval(checkStillCurrent, 500);
+      currentInterval = setInterval(checkCurrentPopup, 500);
       timerInterval = setInterval(tick, 1000);
     };
   </script>
 </head>
 
 <body>
-  <div class="window">
+  <div class="page">
     <div class="header">
-      <div class="brand">SRM-SM | Gestion d'acces RDP</div>
-      <div class="title">Demande d'acces au poste principal</div>
+      <div class="brand">SRM-SM | Acces au poste principal</div>
+      <div class="title">Nouvelle demande d'acces RDP</div>
     </div>
 
     <div class="content">
-      <div class="details">
-        <div class="row"><b>Employe :</b> <span id="employee">...</span></div>
-        <div class="row"><b>Priorite :</b> <span id="priority">...</span></div>
-        <div class="row"><b>Motif :</b> <span id="reason">...</span></div>
-        <div class="row"><b>Message :</b> <span id="message">...</span></div>
+      <div class="info">
+        <div class="row"><span class="label">Employe :</span><span class="value" id="employee">...</span></div>
+        <div class="row"><span class="label">Motif :</span><span class="value" id="reason">...</span></div>
+        <div class="row"><span class="label">Message :</span><span class="value" id="message">...</span></div>
       </div>
 
       <div class="question">Voulez-vous liberer la session actuelle ?</div>
 
-      <div class="actions">
-        <button id="yesBtn" class="yes" onclick="sendAnswer('YES')">Oui</button>
-        <button id="noBtn" class="no" onclick="sendAnswer('NO')">Non</button>
+      <div class="notice">
+        Si une demande plus prioritaire arrive, cette fenetre sera remplacee automatiquement.
       </div>
 
-      <div id="sending" class="sending">Reponse envoyee...</div>
-      <div id="timer" class="footer">Expiration automatique dans 60 secondes</div>
+      <div class="actions">
+        <button id="yesBtn" class="btn yes" onclick="sendAnswer('YES')">Oui</button>
+        <button id="noBtn" class="btn no" onclick="sendAnswer('NO')">Non</button>
+      </div>
+
+      <div id="sent" class="sent">Reponse envoyee...</div>
+      <div id="timer" class="timer">Expiration automatique dans 60 secondes</div>
     </div>
   </div>
 </body>
