@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import ResponsableGuard from "../../../components/ResponsableGuard";
@@ -394,7 +394,7 @@ export default function DemandesPage() {
 
     const interval = setInterval(() => {
       loadDemandes(page, false);
-    }, 3000);
+    }, 30000);
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -818,6 +818,3 @@ export default function DemandesPage() {
     </ResponsableGuard>
   );
 }
-
-
-

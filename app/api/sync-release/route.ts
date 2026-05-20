@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
+import fs from "fs";
+import path from "path";
 
 export const dynamic = "force-dynamic";
 
 const SECURITY_DELAY_SECONDS = 10;
+
+const RESPONSE_DIR = "C:\\Logs\\RDP_Request_Responses";
+const SESSION_OWNER_FILE = path.join(RESPONSE_DIR, "session-owner.json");
 
 type StatusRow = {
   etat_poste?: string;
@@ -24,6 +29,52 @@ function normalize(value: unknown) {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isBadOwnerName(value: unknown): boolean {
+  const text = normalize(value);
+
+  if (!text) return true;
+  if (text === "n/a") return true;
+  if (text === "-") return true;
+  if (text.includes("autocad_user")) return true;
+  if (text.includes("s.cotti")) return true;
+  if (text.includes("non identifie")) return true;
+  if (text.includes("utilisateur actuellement connecte")) return true;
+  if (text.includes("actuellement connecte")) return true;
+  if (text.includes("acces direct")) return true;
+  if (text.includes("administrator")) return true;
+  if (text.includes("administrateur")) return true;
+
+  return false;
+}
+
+function writeSessionOwner(name: string, source: string) {
+  try {
+    const cleanName = String(name || "").trim();
+
+    if (isBadOwnerName(cleanName)) return;
+
+    if (!fs.existsSync(RESPONSE_DIR)) {
+      fs.mkdirSync(RESPONSE_DIR, { recursive: true });
+    }
+
+    fs.writeFileSync(
+      SESSION_OWNER_FILE,
+      JSON.stringify(
+        {
+          name: cleanName,
+          source,
+          updated_at: new Date().toISOString(),
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+  } catch (error) {
+    console.error("Erreur ecriture session-owner:", error);
+  }
 }
 
 function getCurrentStatus(): StatusRow {
@@ -194,6 +245,7 @@ export async function GET() {
 
     if (result.changes > 0) {
       insertApplicationEvent(request);
+      writeSessionOwner(request.Utilisateur, "sync-release-authorized-after-liberation");
     }
 
     return NextResponse.json({

@@ -818,6 +818,3 @@ export default function DemandesPage() {
     </ResponsableGuard>
   );
 }
-
-
-

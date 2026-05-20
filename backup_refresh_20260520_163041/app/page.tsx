@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -334,7 +334,7 @@ export default function EmployePage() {
     const interval = setInterval(() => {
       loadAllData();
       loadLastRequestResult(employeName);
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -663,7 +663,7 @@ export default function EmployePage() {
         if (!currentEmployeeConnectedRef.current) {
           setMessage("");
         }
-      }, 3000);
+      }, 5000);
 
       await loadAllData();
       await loadLastRequestResult(employeName);
@@ -1127,6 +1127,3 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-
-

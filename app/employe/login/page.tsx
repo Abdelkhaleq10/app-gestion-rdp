@@ -350,7 +350,7 @@ export default function EmployeLoginPage() {
                               setFullName(event.target.value);
                               setMessage("");
                             }}
-                            placeholder="Ex : Said COTTI"
+                            placeholder="Entrez votre nom complet"
                             className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-12 py-4 text-slate-900 outline-none transition focus:border-blue-700 focus:bg-white focus:ring-4 focus:ring-blue-100"
                           />
                         </div>

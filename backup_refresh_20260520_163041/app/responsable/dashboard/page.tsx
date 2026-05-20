@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import ResponsableGuard from "../../../components/ResponsableGuard";
@@ -391,7 +391,7 @@ export default function ResponsableDashboardPage() {
 
     const interval = setInterval(() => {
       loadDashboard(false);
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
   }, []);
@@ -627,7 +627,3 @@ export default function ResponsableDashboardPage() {
     </ResponsableGuard>
   );
 }
-
-
-
-

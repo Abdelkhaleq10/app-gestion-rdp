@@ -48,6 +48,7 @@ function isBadName(value) {
   if (text === "n/a") return true;
   if (text === "-") return true;
   if (text === "unknown") return true;
+  if (text === "inconnu") return true;
   if (text === "utilisateur inconnu") return true;
   if (text === "utilisateur actif non identifie") return true;
   if (text === "session rdp active") return true;
@@ -55,6 +56,11 @@ function isBadName(value) {
   if (text.includes("actuellement connecte")) return true;
   if (text.includes("non identifie")) return true;
   if (text.includes("acces direct non identifie")) return true;
+  if (text.includes("acces direct")) return true;
+  if (text.includes("autocad_user")) return true;
+  if (text.includes("s.cotti")) return true;
+  if (text.includes("administrator")) return true;
+  if (text.includes("administrateur")) return true;
 
   return false;
 }
@@ -74,21 +80,6 @@ function readJsonFile(filePath) {
   }
 }
 
-function getSessionOwnerName() {
-  const owner = readJsonFile(SESSION_OWNER_FILE);
-  if (!owner) return "";
-
-  return (
-    cleanName(owner.name) ||
-    cleanName(owner.full_name) ||
-    cleanName(owner.user) ||
-    cleanName(owner.username) ||
-    cleanName(owner.utilisateur) ||
-    cleanName(owner.employeeName) ||
-    ""
-  );
-}
-
 function getCurrentPopupOwnerName() {
   const current = readJsonFile(CURRENT_POPUP_FILE);
   if (!current) return "";
@@ -104,6 +95,21 @@ function getCurrentPopupOwnerName() {
     cleanName(current.responder_name) ||
     cleanName(current.sessionOwner) ||
     cleanName(current.session_owner) ||
+    ""
+  );
+}
+
+function getSessionOwnerName() {
+  const owner = readJsonFile(SESSION_OWNER_FILE);
+  if (!owner) return "";
+
+  return (
+    cleanName(owner.name) ||
+    cleanName(owner.full_name) ||
+    cleanName(owner.user) ||
+    cleanName(owner.username) ||
+    cleanName(owner.utilisateur) ||
+    cleanName(owner.employeeName) ||
     ""
   );
 }
@@ -132,22 +138,22 @@ function getLastAuthorizedUserName(db, currentRequestId) {
     const rows = db
       .prepare(
         `
-        SELECT Utilisateur, active_user_name, response_message, response_at, id
+        SELECT id, Utilisateur, active_user_name, response_message, response_at
         FROM access_requests
         WHERE id < ?
         AND status = 'authorized'
         ORDER BY id DESC
-        LIMIT 20
+        LIMIT 30
         `
       )
       .all(currentRequestId);
 
     for (const row of rows) {
-      const fromActiveName = cleanName(row.active_user_name);
-      if (fromActiveName) return fromActiveName;
+      const activeName = cleanName(row.active_user_name);
+      if (activeName) return activeName;
 
-      const fromUser = cleanName(row.Utilisateur);
-      if (fromUser) return fromUser;
+      const utilisateur = cleanName(row.Utilisateur);
+      if (utilisateur) return utilisateur;
     }
 
     return "";
@@ -164,19 +170,27 @@ function getLastRdpEventUserName(db) {
         SELECT utilisateur, action, id
         FROM rdp_events
         ORDER BY id DESC
-        LIMIT 30
+        LIMIT 50
         `
       )
       .all();
 
     for (const row of rows) {
-      const action = normalize(row.action);
       const user = cleanName(row.utilisateur);
+      const action = normalize(row.action);
 
       if (!user) continue;
       if (action.includes("deconnect")) continue;
       if (action.includes("deconnexion")) continue;
-      if (action.includes("connexion") || action.includes("reconnexion")) {
+      if (action.includes("fermee")) continue;
+      if (action.includes("ferme")) continue;
+
+      if (
+        action.includes("connexion") ||
+        action.includes("reconnexion") ||
+        action.includes("connecte") ||
+        action.includes("active")
+      ) {
         return user;
       }
     }
@@ -189,9 +203,9 @@ function getLastRdpEventUserName(db) {
 
 function getResponderName(db, id) {
   const name =
-    getSessionOwnerName() ||
-    getCurrentPopupOwnerName() ||
     getDbActiveUserName(db, id) ||
+    getCurrentPopupOwnerName() ||
+    getSessionOwnerName() ||
     getLastAuthorizedUserName(db, id) ||
     getLastRdpEventUserName(db) ||
     "";
@@ -227,15 +241,11 @@ function updateRequest(db, id, answer) {
           active_user_name = ?,
           response_message = ?,
           response_at = datetime('now', 'localtime'),
-          status = 'authorized'
+          status = 'waiting_release'
       WHERE id = ?
       AND status IN ('pending', 'waiting_current_user')
       `
-    ).run(
-      responderName,
-      `Demande acceptee par ${responderName}.`,
-      id
-    );
+    ).run(responderName, `Demande acceptee par ${responderName}.`, id);
 
     return "YES";
   }
@@ -252,11 +262,7 @@ function updateRequest(db, id, answer) {
       WHERE id = ?
       AND status IN ('pending', 'waiting_current_user')
       `
-    ).run(
-      responderName,
-      `Demande refusee par ${responderName}.`,
-      id
-    );
+    ).run(responderName, `Demande refusee par ${responderName}.`, id);
 
     return "NO";
   }

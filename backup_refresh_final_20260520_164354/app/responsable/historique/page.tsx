@@ -676,6 +676,3 @@ export default function HistoriqueRdpPage() {
     </ResponsableGuard>
   );
 }
-
-
-

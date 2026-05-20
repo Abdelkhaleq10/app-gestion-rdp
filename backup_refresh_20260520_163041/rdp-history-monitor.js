@@ -1,4 +1,4 @@
-﻿const fs = require("fs");
+const fs = require("fs");
 const path = require("path");
 const { execFile } = require("child_process");
 
@@ -249,6 +249,4 @@ console.log(POSSIBLE_DIRS.join("\n"));
 console.log("====================================");
 
 tick();
-setInterval(tick, 1000);
-
-
+setInterval(tick, 5000);

@@ -628,6 +628,3 @@ export default function ResponsableDashboardPage() {
   );
 }
 
-
-
-
