@@ -1,6 +1,9 @@
-<html>
+﻿<html>
 <head>
-  <title>RDP DEMANDE D'ACC&Egrave;S</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>RDP DEMANDE D'ACCES</title>
 
   <HTA:APPLICATION
     ID="RDP_DEMANDE_ACCES"
@@ -13,9 +16,6 @@
     WINDOWSTATE="normal"
     SCROLL="no"
   />
-
-  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-  <meta http-equiv="x-ua-compatible" content="IE=9" />
 
   <style>
     html, body {
@@ -278,10 +278,21 @@
     var currentInterval = null;
 
     function readText(filePath) {
-      var f = fso.OpenTextFile(filePath, 1, false);
-      var t = f.ReadAll();
-      f.Close();
-      return t;
+      try {
+        var stream = new ActiveXObject("ADODB.Stream");
+        stream.Type = 2;
+        stream.Charset = "utf-8";
+        stream.Open();
+        stream.LoadFromFile(filePath);
+        var text = stream.ReadText();
+        stream.Close();
+        return text;
+      } catch (e) {
+        var f = fso.OpenTextFile(filePath, 1, false);
+        var t = f.ReadAll();
+        f.Close();
+        return t;
+      }
     }
 
     function writeText(filePath, text) {
@@ -301,7 +312,29 @@
       return value;
     }
 
+    function fixEncodingText(value) {
+      var text = String(value || "");
+
+      return text
+        .replace(/Ã©/g, "e")
+        .replace(/Ã¨/g, "e")
+        .replace(/Ãª/g, "e")
+        .replace(/Ã /g, "a")
+        .replace(/Ã¢/g, "a")
+        .replace(/Ã§/g, "c")
+        .replace(/Ã´/g, "o")
+        .replace(/Ã¹/g, "u")
+        .replace(/Ã»/g, "u")
+        .replace(/Â/g, "")
+        .replace(/â€™/g, "'")
+        .replace(/â€œ/g, '"')
+        .replace(/â€/g, '"')
+        .replace(/â€“/g, "-")
+        .replace(/â€¦/g, "...");
+    }
+
     function esc(value) {
+      value = fixEncodingText(value);
       value = String(value || "");
       value = value.replace(/&/g, "&amp;");
       value = value.replace(/</g, "&lt;");
@@ -425,18 +458,18 @@
       <div class="header-glow-2"></div>
 
       <div class="header-content">
-        <div class="brand">SRM-SM | Acc&egrave;s au poste principal</div>
-        <div class="title">Nouvelle demande d'acc&egrave;s RDP</div>
-        <div class="subtitle">Notification envoy&eacute;e &agrave; l'utilisateur actif</div>
+        <div class="brand">SRM-SM | Accès au poste principal</div>
+        <div class="title">Nouvelle demande d'accès RDP</div>
+        <div class="subtitle">Notification envoyée à l'utilisateur actif</div>
       </div>
     </div>
 
     <div class="content">
-      <div class="status-line">Demande en attente de d&eacute;cision</div>
+      <div class="status-line">Demande en attente de décision</div>
 
       <div class="info">
         <div class="row">
-          <span class="label">Employ&eacute; :</span>
+          <span class="label">Utilisateur :</span>
           <span class="value" id="employee">...</span>
         </div>
 
@@ -452,12 +485,12 @@
       </div>
 
       <div class="question-box">
-        <div class="question">Voulez-vous lib&eacute;rer la session actuelle ?</div>
-        <div class="question-small">Votre r&eacute;ponse sera enregistr&eacute;e dans l'historique des demandes.</div>
+        <div class="question">Voulez-vous libérer la session actuelle ?</div>
+        <div class="question-small">Votre réponse sera enregistrée dans l'historique des demandes.</div>
       </div>
 
       <div class="notice">
-        Si une demande plus prioritaire arrive, cette fenetre sera remplacee automatiquement.
+        Si une demande plus prioritaire arrive, cette fenêtre sera remplacée automatiquement.
       </div>
 
       <div class="actions">
@@ -465,7 +498,7 @@
         <button id="noBtn" class="btn no" onclick="sendAnswer('NO')">Non</button>
       </div>
 
-      <div id="sent" class="sent">R&eacute;ponse envoy&eacute;e...</div>
+      <div id="sent" class="sent">Reponse envoyee...</div>
       <div id="timer" class="timer">Expiration automatique dans <span class="timer-strong">60</span> secondes</div>
     </div>
   </div>
