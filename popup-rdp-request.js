@@ -268,14 +268,14 @@ function rejectLosers(db, winner, requests) {
 }
 
 function launchPopup(winner) {
-  killOldPowerShellPopups();
-
   if (responseFileExists(winner.id)) {
     return;
   }
 
   const current = safeJsonRead(CURRENT_POPUP_FILE);
 
+  // Ila nafs demande deja 3andha popup khdam, ma ndir walo.
+  // Hadi katn9es l'appel tasklist/powershell f kol seconde.
   if (
     current &&
     Number(current.requestId) === Number(winner.id) &&
@@ -285,11 +285,14 @@ function launchPopup(winner) {
     return;
   }
 
-  if (current?.pid) {
+  // Ghir ila bghina nbdlo popup, hnaya n9tlo l9dim.
+  if (current?.pid && isProcessRunning(current.pid)) {
     killProcess(current.pid);
   }
 
+  // Kill ancienne HTA/PowerShell ghir mlli ghadi nlaunchiw popup jdida.
   killAllHtaPopups();
+  killOldPowerShellPopups();
 
   const popupToken = `${winner.id}-${Date.now()}`;
 
@@ -326,7 +329,6 @@ function launchPopup(winner) {
 
 function main() {
   ensureDirs();
-  killOldPowerShellPopups();
 
   if (!fs.existsSync(DB_PATH)) {
     console.log("DB introuvable:", DB_PATH);
@@ -335,37 +337,36 @@ function main() {
 
   const db = new Database(DB_PATH);
 
-  if (!tableExists(db, "access_requests")) {
-    db.close();
-    return;
-  }
-
-  ensureSchema(db);
-
-  const requests = getActiveRequests(db);
-
-  if (requests.length === 0) {
-    const current = safeJsonRead(CURRENT_POPUP_FILE);
-
-    if (current?.pid) {
-      killProcess(current.pid);
+  try {
+    if (!tableExists(db, "access_requests")) {
+      return;
     }
 
-    safeDelete(CURRENT_POPUP_FILE);
-    killAllHtaPopups();
-    killOldPowerShellPopups();
+    ensureSchema(db);
 
+    const requests = getActiveRequests(db);
+
+    if (requests.length === 0) {
+      const current = safeJsonRead(CURRENT_POPUP_FILE);
+
+      // Ma n9tlouch mshta/powershell f kol tick bach Windows ma ytwllich tqil.
+      // Kan9tlo ghir ila kayn popup current mssajel w ma bqat 7ta demande.
+      if (current?.pid && isProcessRunning(current.pid)) {
+        killProcess(current.pid);
+      }
+
+      safeDelete(CURRENT_POPUP_FILE);
+      return;
+    }
+
+    const winner = requests[0];
+
+    rejectLosers(db, winner, requests);
+    markWaitingCurrentUser(db, winner);
+    launchPopup(winner);
+  } finally {
     db.close();
-    return;
   }
-
-  const winner = requests[0];
-
-  rejectLosers(db, winner, requests);
-  markWaitingCurrentUser(db, winner);
-  launchPopup(winner);
-
-  db.close();
 }
 
 main();

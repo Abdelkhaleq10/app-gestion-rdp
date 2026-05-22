@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import Database from "better-sqlite3";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 const DB_PATH = "C:\\Logs\\rdp_access.db";
 
 type DbRow = Record<string, any>;
@@ -371,13 +374,35 @@ export async function GET(request: NextRequest) {
 
     const columns = getColumns(db, "rdp_events");
     const orderCol = columns.includes("id") ? "id" : "rowid";
+    const orderDirection = sort === "old" ? "ASC" : "DESC";
+
+    const dateSortExpression = `
+      CASE
+        WHEN date LIKE '__/__/____'
+          THEN substr(date, 7, 4) || '-' || substr(date, 4, 2) || '-' || substr(date, 1, 2)
+        WHEN date LIKE '____-__-__%'
+          THEN substr(date, 1, 10)
+        ELSE '0000-00-00'
+      END
+    `;
+
+    const timeSortExpression = `
+      CASE
+        WHEN heure IS NOT NULL AND trim(heure) != '' AND heure != '-'
+          THEN heure
+        ELSE '00:00:00'
+      END
+    `;
 
     const rows = db
       .prepare(
         `
         SELECT *
         FROM rdp_events
-        ORDER BY ${orderCol} ${sort === "old" ? "ASC" : "DESC"}
+        ORDER BY
+          ${dateSortExpression} ${orderDirection},
+          ${timeSortExpression} ${orderDirection},
+          ${orderCol} ${orderDirection}
         LIMIT 5000
         `
       )

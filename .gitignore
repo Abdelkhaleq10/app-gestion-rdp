@@ -61,6 +61,7 @@ sync_rdp_history_log.txt
 .kiro/
 .opencode/
 .qoder/
+
 .roo/
 .trae/
 .windsurf/
@@ -69,3 +70,8 @@ sync_rdp_history_log.txt
 # old disabled popup files
 *.DISABLED
 *.old
+
+backup_refresh_*/
+.next/
+node_modules/
+*.log
