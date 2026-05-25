@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Application de gestion des accès RDP
 
-## Getting Started
+## Description
 
-First, run the development server:
+Ce projet est une application web développée pour la gestion et la supervision des accès RDP au poste principal de SRM-SM.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+L'objectif principal est d'organiser l'accès à un poste unique utilisé par plusieurs employés, afin d'éviter les conflits de connexion, de suivre l'état du poste en temps réel et de conserver un historique des connexions RDP.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Objectifs du projet
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Contrôler l'accès au poste principal.
+- Afficher l'état du poste : Libre ou Occupé.
+- Permettre aux employés d'envoyer une demande d'accès.
+- Notifier l'utilisateur actif lorsqu'une nouvelle demande arrive.
+- Enregistrer les connexions, reconnexions et déconnexions RDP.
+- Permettre au responsable de consulter les demandes et l'historique.
+- Exporter les données sous format CSV.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Technologies utilisées
 
-## Learn More
+- Next.js
+- React.js
+- TypeScript
+- JavaScript
+- PowerShell
+- SQLite
+- Tailwind CSS
+- Windows Task Scheduler
 
-To learn more about Next.js, take a look at the following resources:
+## Structure principale du projet
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```TXT
+C:\Appel
+├── app
+│   ├── page.TS
+│   ├── api
+│   └── responsable
+├── components
+├── lit
+├── public
+├── scripts_RDP
+├── logs_examples
+├── popup-window.hta
+├── rdp-realtime-monitor.js
+├── rdp-history-monitor.js
+└── run-rdp-status-loop.ps1
