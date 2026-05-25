@@ -26,6 +26,9 @@ type RequestBody = {
   priority?: string;
   reason?: string;
   message?: string;
+  activeUserName?: string;
+  active_user_name?: string;
+  currentUserText?: string;
 };
 
 type QueueRequest = {
@@ -37,6 +40,9 @@ type QueueRequest = {
   priority_level: number;
   active_user_name?: string;
 };
+
+const RESPONSE_DIR = "C:\\Logs\\RDP_Request_Responses";
+const SESSION_OWNER_FILE = path.join(RESPONSE_DIR, "session-owner.json");
 
 const PRIORITIES: Record<string, { label: string; level: number }> = {
   urgent: { label: "Urgent", level: 5 },
@@ -58,6 +64,78 @@ function normalizeKey(value: unknown): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+function isBadOwnerName(value: unknown): boolean {
+  const text = normalizeKey(value);
+
+  if (!text) return true;
+  if (text === "n/a") return true;
+  if (text === "-") return true;
+  if (text === "unknown") return true;
+  if (text === "inconnu") return true;
+  if (text.includes("autocad_user")) return true;
+  if (text.includes("s.cotti")) return true;
+  if (text.includes("non identifie")) return true;
+  if (text.includes("utilisateur actuellement connecte")) return true;
+  if (text.includes("actuellement connecte")) return true;
+  if (text.includes("acces direct")) return true;
+  if (text.includes("administrator")) return true;
+  if (text.includes("administrateur")) return true;
+
+  return false;
+}
+
+function writeSessionOwner(name: string, source: string) {
+  try {
+    const cleanName = normalizeText(name);
+
+    if (isBadOwnerName(cleanName)) return;
+
+    if (!fs.existsSync(RESPONSE_DIR)) {
+      fs.mkdirSync(RESPONSE_DIR, { recursive: true });
+    }
+
+    fs.writeFileSync(
+      SESSION_OWNER_FILE,
+      JSON.stringify(
+        {
+          name: cleanName,
+          source,
+          updated_at: new Date().toISOString(),
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+  } catch (error) {
+    console.error("Erreur ecriture session-owner:", error);
+  }
+}
+
+function readSessionOwner(): string {
+  try {
+    if (!fs.existsSync(SESSION_OWNER_FILE)) return "";
+
+    const data = JSON.parse(fs.readFileSync(SESSION_OWNER_FILE, "utf8"));
+
+    const name = normalizeText(
+      data?.name ||
+        data?.full_name ||
+        data?.user ||
+        data?.username ||
+        data?.utilisateur ||
+        data?.employeeName ||
+        ""
+    );
+
+    if (isBadOwnerName(name)) return "";
+
+    return name;
+  } catch {
+    return "";
+  }
 }
 
 function readStatusFile(): StatusData {
@@ -86,7 +164,8 @@ function readStatusFile(): StatusData {
 
   return {
     etat_poste: etatMatch?.[1]?.trim() || "Inconnu",
-    nombre_sessions_actives: parseInt(sessionsMatch?.[1]?.trim() || "0", 10) || 0,
+    nombre_sessions_actives:
+      parseInt(sessionsMatch?.[1]?.trim() || "0", 10) || 0,
     date_verification: dateMatch?.[1]?.trim() || "",
   };
 }
@@ -187,12 +266,77 @@ function ensureAccessRequestsColumns() {
   addColumnIfMissing("access_requests", "message", "TEXT DEFAULT ''");
   addColumnIfMissing("access_requests", "priority_level", "INTEGER DEFAULT 1");
   addColumnIfMissing("access_requests", "active_user_name", "TEXT DEFAULT ''");
-  addColumnIfMissing("access_requests", "current_user_response", "TEXT DEFAULT ''");
+  addColumnIfMissing(
+    "access_requests",
+    "current_user_response",
+    "TEXT DEFAULT ''"
+  );
   addColumnIfMissing("access_requests", "response_message", "TEXT DEFAULT ''");
   addColumnIfMissing("access_requests", "response_at", "TEXT DEFAULT ''");
 }
 
-function getActiveEmployeeName(): string {
+function getLastAuthorizedEmployeeName(): string {
+  try {
+    const row = db
+      .prepare(
+        `
+        SELECT
+          id,
+          Utilisateur,
+          active_user_name,
+          response_message,
+          response_at,
+          request_time
+        FROM access_requests
+        WHERE status = 'authorized'
+        ORDER BY id DESC
+        LIMIT 1
+        `
+      )
+      .get() as
+      | {
+          id?: number;
+          Utilisateur?: string;
+          active_user_name?: string;
+          response_message?: string;
+          response_at?: string;
+          request_time?: string;
+        }
+      | undefined;
+
+    const activeName = normalizeText(row?.active_user_name || "");
+    if (!isBadOwnerName(activeName)) return activeName;
+
+    const utilisateur = normalizeText(row?.Utilisateur || "");
+    if (!isBadOwnerName(utilisateur)) return utilisateur;
+
+    return "";
+  } catch (error) {
+    console.error("Erreur lecture dernier utilisateur autorise:", error);
+    return "";
+  }
+}
+
+function getProvidedActiveUserName(body: RequestBody): string {
+  const name = normalizeText(
+    body.activeUserName || body.active_user_name || body.currentUserText || ""
+  );
+
+  if (isBadOwnerName(name)) return "";
+
+  return name;
+}
+
+function getActiveEmployeeName(body: RequestBody): string {
+  const fromPage = getProvidedActiveUserName(body);
+  if (fromPage) return fromPage;
+
+  const fromSessionOwner = readSessionOwner();
+  if (fromSessionOwner) return fromSessionOwner;
+
+  const fromLastAuthorized = getLastAuthorizedEmployeeName();
+  if (fromLastAuthorized) return fromLastAuthorized;
+
   return "l'utilisateur actuellement connecte";
 }
 
@@ -345,7 +489,10 @@ function rejectNewRequestBecauseHigherExists(params: {
   return message;
 }
 
-function promoteRequestToWaiting(requestItem: QueueRequest, activeUserName: string) {
+function promoteRequestToWaiting(
+  requestItem: QueueRequest,
+  activeUserName: string
+) {
   const waitingMessage =
     activeUserName === "l'utilisateur actuellement connecte"
       ? "Demande envoyee a l'utilisateur actuellement connecte. En attente de sa reponse."
@@ -423,7 +570,10 @@ function handlePriorityDecision(params: {
       )
       .get(params.requestId) as QueueRequest;
 
-    const waitingMessage = promoteRequestToWaiting(newRequest, params.activeUserName);
+    const waitingMessage = promoteRequestToWaiting(
+      newRequest,
+      params.activeUserName
+    );
 
     return {
       status: "waiting_current_user",
@@ -452,7 +602,10 @@ function handlePriorityDecision(params: {
       )
       .get(params.requestId) as QueueRequest;
 
-    const waitingMessage = promoteRequestToWaiting(newRequest, params.activeUserName);
+    const waitingMessage = promoteRequestToWaiting(
+      newRequest,
+      params.activeUserName
+    );
 
     return {
       status: "waiting_current_user",
@@ -485,7 +638,10 @@ function handlePriorityDecision(params: {
       )
       .get(params.requestId) as QueueRequest;
 
-    const waitingMessage = promoteRequestToWaiting(newRequest, params.activeUserName);
+    const waitingMessage = promoteRequestToWaiting(
+      newRequest,
+      params.activeUserName
+    );
 
     return {
       status: "waiting_current_user",
@@ -566,6 +722,8 @@ export async function POST(request: NextRequest) {
 
       const requestId = Number(result.lastInsertRowid);
 
+      writeSessionOwner(employeeName, "request-access-authorized-poste-libre");
+
       return NextResponse.json({
         success: true,
         allowed: true,
@@ -588,7 +746,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const activeUserName = getActiveEmployeeName();
+    const activeUserName = getActiveEmployeeName(body);
 
     const insertResult = db
       .prepare(

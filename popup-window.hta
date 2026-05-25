@@ -1,0 +1,506 @@
+﻿<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>RDP DEMANDE D'ACCES</title>
+
+  <HTA:APPLICATION
+    ID="RDP_DEMANDE_ACCES"
+    APPLICATIONNAME="RDP_DEMANDE_ACCES"
+    BORDER="thin"
+    CAPTION="yes"
+    SHOWINTASKBAR="yes"
+    SINGLEINSTANCE="yes"
+    SYSMENU="yes"
+    WINDOWSTATE="normal"
+    SCROLL="no"
+  />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 620px;
+      height: 500px;
+      overflow: hidden;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #eaf1fb;
+      color: #0f172a;
+    }
+
+    .page {
+      width: 590px;
+      height: 465px;
+      margin: 14px auto;
+      background: #ffffff;
+      border: 1px solid #d5e3f5;
+      border-radius: 18px;
+      box-shadow: 0 18px 44px rgba(15, 23, 42, 0.24);
+      overflow: hidden;
+    }
+
+    .header {
+      height: 104px;
+      background: #173987;
+      color: white;
+      padding: 18px 22px;
+      box-sizing: border-box;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header-glow-1 {
+      position: absolute;
+      right: -60px;
+      top: -80px;
+      width: 220px;
+      height: 220px;
+      background: #3b82f6;
+      opacity: 0.28;
+      border-radius: 120px;
+    }
+
+    .header-glow-2 {
+      position: absolute;
+      left: -45px;
+      bottom: -70px;
+      width: 190px;
+      height: 190px;
+      background: #ffffff;
+      opacity: 0.10;
+      border-radius: 100px;
+    }
+
+    .header-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    .brand {
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: #dbeafe;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .title {
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 28px;
+      color: #ffffff;
+      text-shadow: 0 3px 12px rgba(0, 0, 0, 0.22);
+    }
+
+    .subtitle {
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #bfdbfe;
+    }
+
+    .content {
+      padding: 18px 22px 16px 22px;
+      box-sizing: border-box;
+    }
+
+    .status-line {
+      height: 34px;
+      margin-bottom: 14px;
+      border-radius: 16px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      line-height: 34px;
+      padding-left: 14px;
+      box-sizing: border-box;
+    }
+
+    .info {
+      background: #f8fbff;
+      border: 1px solid #dce8f7;
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+    }
+
+    .row {
+      font-size: 14px;
+      line-height: 27px;
+      color: #334155;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .label {
+      display: inline-block;
+      width: 92px;
+      font-weight: 900;
+      color: #0f172a;
+    }
+
+    .value {
+      color: #334155;
+      font-weight: 700;
+    }
+
+    .message-row {
+      white-space: normal;
+      line-height: 22px;
+      max-height: 46px;
+      overflow: hidden;
+    }
+
+    .message-row .label {
+      vertical-align: top;
+    }
+
+    .message-row .value {
+      display: inline-block;
+      width: 410px;
+      vertical-align: top;
+    }
+
+    .question-box {
+      text-align: center;
+      margin: 14px 0 12px 0;
+      padding: 12px 12px;
+      border-radius: 16px;
+      background: #ffffff;
+      border: 1px solid #edf2f7;
+    }
+
+    .question {
+      font-size: 18px;
+      font-weight: 900;
+      color: #0b2a5b;
+      line-height: 24px;
+    }
+
+    .question-small {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 700;
+    }
+
+    .notice {
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #c2410c;
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 17px;
+      text-align: center;
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+
+    .actions {
+      height: 52px;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .btn {
+      width: 150px;
+      height: 44px;
+      border: 0;
+      border-radius: 13px;
+      color: white;
+      font-size: 16px;
+      font-weight: 900;
+      margin: 0 13px;
+      cursor: pointer;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.18);
+    }
+
+    .yes {
+      background: #16a34a;
+    }
+
+    .no {
+      background: #e11d48;
+    }
+
+    .btn:hover {
+      opacity: 0.92;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+
+    .sent {
+      display: none;
+      text-align: center;
+      font-size: 12px;
+      color: #16a34a;
+      font-weight: 900;
+      margin-top: 5px;
+    }
+
+    .timer {
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      font-weight: 800;
+      margin-top: 6px;
+    }
+
+    .timer-strong {
+      color: #173987;
+      font-weight: 900;
+    }
+  </style>
+
+  <script language="javascript">
+    var fso = new ActiveXObject("Scripting.FileSystemObject");
+
+    var responseDir = "C:\\Logs\\RDP_Request_Responses";
+    var currentPopupFile = responseDir + "\\popup-current.json";
+
+    var requestId = 0;
+    var popupToken = "";
+    var secondsLeft = 60;
+    var answered = false;
+    var timerInterval = null;
+    var currentInterval = null;
+
+    function readText(filePath) {
+      try {
+        var stream = new ActiveXObject("ADODB.Stream");
+        stream.Type = 2;
+        stream.Charset = "utf-8";
+        stream.Open();
+        stream.LoadFromFile(filePath);
+        var text = stream.ReadText();
+        stream.Close();
+        return text;
+      } catch (e) {
+        var f = fso.OpenTextFile(filePath, 1, false);
+        var t = f.ReadAll();
+        f.Close();
+        return t;
+      }
+    }
+
+    function writeText(filePath, text) {
+      var f = fso.CreateTextFile(filePath, true);
+      f.Write(text);
+      f.Close();
+    }
+
+    function parseJson(text) {
+      return eval("(" + text + ")");
+    }
+
+    function clean(value, fallback) {
+      value = String(value || "");
+      value = value.replace(/^\s+|\s+$/g, "");
+      if (!value) return fallback || "-";
+      return value;
+    }
+
+    function fixEncodingText(value) {
+      var text = String(value || "");
+
+      return text
+        .replace(/Ã©/g, "e")
+        .replace(/Ã¨/g, "e")
+        .replace(/Ãª/g, "e")
+        .replace(/Ã /g, "a")
+        .replace(/Ã¢/g, "a")
+        .replace(/Ã§/g, "c")
+        .replace(/Ã´/g, "o")
+        .replace(/Ã¹/g, "u")
+        .replace(/Ã»/g, "u")
+        .replace(/Â/g, "")
+        .replace(/â€™/g, "'")
+        .replace(/â€œ/g, '"')
+        .replace(/â€/g, '"')
+        .replace(/â€“/g, "-")
+        .replace(/â€¦/g, "...");
+    }
+
+    function esc(value) {
+      value = fixEncodingText(value);
+      value = String(value || "");
+      value = value.replace(/&/g, "&amp;");
+      value = value.replace(/</g, "&lt;");
+      value = value.replace(/>/g, "&gt;");
+      value = value.replace(/"/g, "&quot;");
+      return value;
+    }
+
+    function setHtml(id, value) {
+      document.getElementById(id).innerHTML = esc(value);
+    }
+
+    function closeMe() {
+      try {
+        if (timerInterval) clearInterval(timerInterval);
+        if (currentInterval) clearInterval(currentInterval);
+      } catch (e) {}
+      window.close();
+    }
+
+    function loadPopup() {
+      try {
+        if (!fso.FileExists(currentPopupFile)) {
+          closeMe();
+          return;
+        }
+
+        var data = parseJson(readText(currentPopupFile));
+
+        requestId = parseInt(data.requestId, 10);
+        popupToken = String(data.popupToken || "");
+
+        setHtml("employee", clean(data.employee || data.Utilisateur || data.employee_name, "Utilisateur"));
+        setHtml("reason", clean(data.reason || data.priority, "-"));
+        setHtml("message", clean(data.message, "-"));
+
+        window.resizeTo(635, 535);
+        window.moveTo(
+          Math.max(0, (screen.width - 635) / 2),
+          Math.max(0, (screen.height - 535) / 2)
+        );
+        window.focus();
+      } catch (e) {
+        closeMe();
+      }
+    }
+
+    function checkCurrentPopup() {
+      try {
+        if (!fso.FileExists(currentPopupFile)) {
+          closeMe();
+          return;
+        }
+
+        var data = parseJson(readText(currentPopupFile));
+
+        if (parseInt(data.requestId, 10) !== requestId) {
+          closeMe();
+          return;
+        }
+
+        if (String(data.popupToken || "") !== popupToken) {
+          closeMe();
+          return;
+        }
+      } catch (e) {
+        closeMe();
+      }
+    }
+
+    function disableButtons() {
+      document.getElementById("yesBtn").disabled = true;
+      document.getElementById("noBtn").disabled = true;
+    }
+
+    function sendAnswer(answer) {
+      if (answered) return;
+      answered = true;
+
+      try {
+        disableButtons();
+        document.getElementById("sent").style.display = "block";
+
+        var responseFile = responseDir + "\\request_" + requestId + ".txt";
+        writeText(responseFile, answer);
+      } catch (e) {}
+
+      window.setTimeout(function () {
+        closeMe();
+      }, 300);
+    }
+
+    function tick() {
+      if (answered) return;
+
+      checkCurrentPopup();
+
+      secondsLeft = secondsLeft - 1;
+      if (secondsLeft < 0) secondsLeft = 0;
+
+      document.getElementById("timer").innerHTML =
+        "Expiration automatique dans <span class='timer-strong'>" + secondsLeft + "</span> secondes";
+
+      if (secondsLeft <= 0) {
+        sendAnswer("TIMEOUT");
+      }
+    }
+
+    window.onload = function () {
+      loadPopup();
+      currentInterval = setInterval(checkCurrentPopup, 500);
+      timerInterval = setInterval(tick, 1000);
+    };
+  </script>
+</head>
+
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="header-glow-1"></div>
+      <div class="header-glow-2"></div>
+
+      <div class="header-content">
+        <div class="brand">SRM-SM | Accès au poste principal</div>
+        <div class="title">Nouvelle demande d'accès RDP</div>
+        <div class="subtitle">Notification envoyée à l'utilisateur actif</div>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="status-line">Demande en attente de décision</div>
+
+      <div class="info">
+        <div class="row">
+          <span class="label">Utilisateur :</span>
+          <span class="value" id="employee">...</span>
+        </div>
+
+        <div class="row">
+          <span class="label">Motif :</span>
+          <span class="value" id="reason">...</span>
+        </div>
+
+        <div class="row message-row">
+          <span class="label">Message :</span>
+          <span class="value" id="message">...</span>
+        </div>
+      </div>
+
+      <div class="question-box">
+        <div class="question">Voulez-vous libérer la session actuelle ?</div>
+        <div class="question-small">Votre réponse sera enregistrée dans l'historique des demandes.</div>
+      </div>
+
+      <div class="notice">
+        Si une demande plus prioritaire arrive, cette fenêtre sera remplacée automatiquement.
+      </div>
+
+      <div class="actions">
+        <button id="yesBtn" class="btn yes" onclick="sendAnswer('YES')">Oui</button>
+        <button id="noBtn" class="btn no" onclick="sendAnswer('NO')">Non</button>
+      </div>
+
+      <div id="sent" class="sent">Reponse envoyee...</div>
+      <div id="timer" class="timer">Expiration automatique dans <span class="timer-strong">60</span> secondes</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,33 +1,46 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ResponsableGuard from "../../../components/ResponsableGuard";
-import ResponsableNav from "../../../components/ResponsableNav";
+import AppTopBar from "../../../components/AppTopBar";
+
+import { motion } from "framer-motion";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Lock,
+  Monitor,
+  ShieldCheck,
+  UserCheck,
+  XCircle,
+} from "lucide-react";
 
 type DashboardData = {
   etat_poste?: string;
+  etatPoste?: string;
   nombre_sessions_actives?: number;
+  nombreSessionsActives?: number;
+  sessionsActives?: number;
   date_verification?: string;
+  dateVerification?: string;
   total_rdp_events?: number;
   total_access_requests?: number;
+  utilisateur_actif?: string;
+  utilisateurActif?: string;
+  active_user?: string;
+  activeUser?: string;
+  current_user?: string;
+  currentUser?: string;
 };
 
 type RequestItem = {
   id: number;
   Utilisateur?: string;
   utilisateur?: string;
-  ip?: string;
-  pc_name?: string;
-  request_time?: string;
+  employee_name?: string;
   status?: string;
-  reason?: string;
-  priority?: string;
-  priority_level?: number;
-  message?: string;
   active_user_name?: string;
-  current_user_response?: string;
-  response_message?: string;
-  response_at?: string;
 };
 
 type RequestsResponse = {
@@ -38,14 +51,18 @@ type RequestsResponse = {
 };
 
 type HistoryItem = {
-  id: number;
-  date: string;
-  heure: string;
-  utilisateur: string;
-  nomSession: string;
-  ip: string;
-  typeIP: string;
-  action: string;
+  id?: number;
+  date?: string;
+  heure?: string;
+  utilisateur?: string;
+  Utilisateur?: string;
+  user?: string;
+  nom?: string;
+  fullName?: string;
+  action?: string;
+  ip?: string;
+  machine?: string;
+  session_active?: string | boolean;
 };
 
 type HistoryResponse = {
@@ -53,7 +70,6 @@ type HistoryResponse = {
   data?: HistoryItem[];
   history?: HistoryItem[];
   events?: HistoryItem[];
-  rows?: HistoryItem[];
   total?: number;
 };
 
@@ -74,135 +90,6 @@ function normalizePosteStatus(value?: string) {
   return "Inconnu";
 }
 
-function getRequestUser(item: RequestItem) {
-  return item.Utilisateur || item.utilisateur || "N/A";
-}
-
-function cleanIp(ip?: string) {
-  const value = String(ip || "").trim();
-
-  if (!value) return "N/A";
-  if (value === "::1") return "127.0.0.1";
-  if (value.startsWith("::ffff:")) return value.replace("::ffff:", "");
-
-  return value;
-}
-
-function formatDate(value?: string) {
-  if (!value) return "-";
-
-  const parsed = new Date(value);
-
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toLocaleString("fr-FR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }
-
-  return value;
-}
-
-function statusBadgeClass(status?: string) {
-  const value = normalize(status);
-
-  if (value === "authorized" || value.includes("autor")) {
-    return "bg-green-100 text-green-700 border-green-200";
-  }
-
-  if (value === "rejected" || value.includes("refus")) {
-    return "bg-red-100 text-red-700 border-red-200";
-  }
-
-  if (value === "waiting_release") {
-    return "bg-blue-100 text-blue-700 border-blue-200";
-  }
-
-  if (value === "waiting_current_user" || value === "pending") {
-    return "bg-orange-100 text-orange-700 border-orange-200";
-  }
-
-  return "bg-slate-100 text-slate-700 border-slate-200";
-}
-
-function statusLabel(status?: string) {
-  const value = normalize(status);
-
-  if (value === "authorized" || value.includes("autor")) return "Autorisee";
-  if (value === "rejected" || value.includes("refus")) return "Refusee";
-  if (value === "waiting_current_user") return "En attente de reponse";
-  if (value === "waiting_release") return "En attente de liberation";
-  if (value === "pending") return "En attente";
-
-  return "En attente";
-}
-
-function responseLabel(response?: string) {
-  const value = normalize(response);
-
-  if (value === "accepted") return "Acceptee";
-  if (value === "rejected") return "Refusee";
-  if (value === "timeout") return "Expiree";
-  if (value === "no_active_session") return "Aucune session active";
-  if (value === "error") return "Erreur notification";
-
-  return "Aucune reponse";
-}
-
-function priorityLabel(priority?: string, reason?: string) {
-  const value = normalize(priority || reason);
-
-  if (value === "urgent") return "Urgent";
-  if (value === "consultation") return "Consultation";
-  if (value === "verification") return "Verification";
-  if (value === "impression") return "Impression";
-  if (value === "assistance") return "Assistance";
-  if (value === "autre" || value === "other") return "Autre";
-
-  return reason || "Normal";
-}
-
-function getInitials(name: string) {
-  const clean = String(name || "").trim();
-
-  if (!clean || clean === "N/A") return "NA";
-
-  const parts = clean.split(" ").filter(Boolean);
-
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-
-  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
-}
-
-function actionBadgeClass(action?: string) {
-  const value = normalize(action);
-
-  if (value.includes("reconnexion")) {
-    return "bg-blue-100 text-blue-700";
-  }
-
-  if (value.includes("connexion") && !value.includes("deconnexion")) {
-    return "bg-green-100 text-green-700";
-  }
-
-  if (value.includes("deconnexion") || value.includes("deconnectee")) {
-    return "bg-red-100 text-red-700";
-  }
-
-  if (value.includes("autorisee")) {
-    return "bg-green-100 text-green-700";
-  }
-
-  if (value.includes("refusee")) {
-    return "bg-red-100 text-red-700";
-  }
-
-  return "bg-slate-100 text-slate-700";
-}
-
 function isAuthorized(status?: string) {
   const value = normalize(status);
   return value === "authorized" || value.includes("autor");
@@ -210,19 +97,194 @@ function isAuthorized(status?: string) {
 
 function isRejected(status?: string) {
   const value = normalize(status);
-  return value === "rejected" || value.includes("refus");
-}
 
-function isWaitingResponse(status?: string) {
-  return normalize(status) === "waiting_current_user";
-}
-
-function isWaitingRelease(status?: string) {
-  return normalize(status) === "waiting_release";
+  return (
+    value === "rejected" ||
+    value.includes("refus") ||
+    value.includes("timeout") ||
+    value.includes("cancel")
+  );
 }
 
 function isPending(status?: string) {
-  return normalize(status) === "pending";
+  const value = normalize(status);
+
+  return (
+    value === "pending" ||
+    value === "waiting_current_user" ||
+    value === "waiting_release" ||
+    value.includes("attente")
+  );
+}
+
+function cleanText(value?: string) {
+  const text = String(value || "").trim();
+  return text || "";
+}
+
+function getActiveUserFromDashboard(dashboard: DashboardData | null) {
+  if (!dashboard) return "";
+
+  return (
+    cleanText(dashboard.utilisateur_actif) ||
+    cleanText(dashboard.utilisateurActif) ||
+    cleanText(dashboard.active_user) ||
+    cleanText(dashboard.activeUser) ||
+    cleanText(dashboard.current_user) ||
+    cleanText(dashboard.currentUser)
+  );
+}
+
+function isInvalidActiveUser(value?: string) {
+  const text = normalize(value);
+
+  if (!text) return true;
+  if (text === "n/a") return true;
+  if (text === "aucun") return true;
+  if (text.includes("session rdp active")) return true;
+  if (text.includes("utilisateur rdp actif")) return true;
+  if (text.includes("utilisateur actuellement")) return true;
+  if (text.includes("utilisateur actif non identifie")) return true;
+  if (text.includes("non identifie")) return true;
+  if (text.includes("acces direct")) return true;
+  if (text.includes("autocad_user")) return true;
+  if (text.includes("s.cotti")) return true;
+
+  return false;
+}
+
+function isRdpConnectionAction(value?: string) {
+  const action = normalize(value);
+
+  return (
+    action.includes("connexion rdp") ||
+    action.includes("reconnexion rdp") ||
+    action.includes("connexion") ||
+    action.includes("reconnexion")
+  );
+}
+
+function isRdpDisconnectAction(value?: string) {
+  const action = normalize(value);
+
+  return (
+    action.includes("session deconnectee") ||
+    action.includes("deconnexion") ||
+    action.includes("deconnect")
+  );
+}
+
+function getHistoryUser(item?: HistoryItem) {
+  if (!item) return "";
+
+  return (
+    cleanText(item.utilisateur) ||
+    cleanText(item.Utilisateur) ||
+    cleanText(item.user) ||
+    cleanText(item.nom) ||
+    cleanText(item.fullName)
+  );
+}
+
+function getActiveUserFromHistory(items: HistoryItem[], sessionsActives: number) {
+  const normalizedItems = Array.isArray(items) ? items : [];
+
+  // Important:
+  // Kanqelbo 3la akher Connexion/Reconnexion RDP fih smiya s7i7a.
+  // Ma kanwa9foch 3nd "Session deconnectee" hit sometimes kayji event deconnexion
+  // qbel reconnexion f affichage / tri, w dashboard kayb9a fih sessionsActives = 1.
+  for (const item of normalizedItems) {
+    const action = item.action || "";
+    const user = getHistoryUser(item);
+
+    if (isRdpConnectionAction(action) && !isInvalidActiveUser(user)) {
+      return user;
+    }
+  }
+
+  // Ila makaynach smiya f history, mais session active kayna,
+  // n'affichiw fallback wa9ti.
+  return sessionsActives > 0 ? "Utilisateur RDP actif" : "Aucun";
+}
+
+function KpiCard({
+  title,
+  value,
+  subtitle,
+  icon,
+  color,
+}: {
+  title: string;
+  value: string | number;
+  subtitle: string;
+  icon: React.ReactNode;
+  color: "blue" | "green" | "red" | "orange";
+}) {
+  const styles = {
+    blue: "border-blue-100 bg-white text-blue-700",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    red: "border-red-200 bg-red-50 text-red-700",
+    orange: "border-orange-200 bg-orange-50 text-orange-700",
+  };
+
+  return (
+    <motion.div
+      whileHover={{ y: -4 }}
+      transition={{ type: "spring", stiffness: 260, damping: 20 }}
+      className={`rounded-[1.7rem] border p-6 shadow-sm transition hover:shadow-xl ${styles[color]}`}
+    >
+      <div className="flex items-start justify-between gap-5">
+        <div>
+          <p className="text-sm font-black text-slate-600">{title}</p>
+
+          <p className="mt-3 text-4xl font-black tracking-tight text-slate-950">
+            {value}
+          </p>
+
+          <p className="mt-3 text-sm leading-6 text-slate-500">{subtitle}</p>
+        </div>
+
+        <div className="rounded-2xl border border-current/10 bg-white/75 p-4 shadow-sm">
+          {icon}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function SmallStatusCard({
+  title,
+  value,
+  icon,
+  color,
+}: {
+  title: string;
+  value: string | number;
+  icon: React.ReactNode;
+  color: "green" | "red" | "orange";
+}) {
+  const styles = {
+    green: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    red: "border-red-200 bg-red-50 text-red-700",
+    orange: "border-orange-200 bg-orange-50 text-orange-700",
+  };
+
+  return (
+    <motion.div
+      whileHover={{ y: -3 }}
+      transition={{ type: "spring", stiffness: 260, damping: 20 }}
+      className={`rounded-[1.7rem] border p-6 shadow-sm ${styles[color]}`}
+    >
+      <div className="flex items-center gap-4">
+        <div className="rounded-2xl bg-white/80 p-3 shadow-sm">{icon}</div>
+
+        <div>
+          <p className="text-sm font-black">{title}</p>
+          <p className="mt-1 text-4xl font-black">{value}</p>
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 export default function ResponsableDashboardPage() {
@@ -232,68 +294,56 @@ export default function ResponsableDashboardPage() {
   const [totalRequests, setTotalRequests] = useState(0);
   const [totalHistory, setTotalHistory] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const etat = normalizePosteStatus(dashboard?.etat_poste);
+  const etat = normalizePosteStatus(
+    dashboard?.etat_poste || dashboard?.etatPoste
+  );
+
   const isLibre = etat === "Libre";
   const isOccupe = etat === "Occupe";
 
-  const authorizedCount = requests.filter((item) =>
+  const sessionsActives =
+    dashboard?.nombre_sessions_actives ??
+    dashboard?.nombreSessionsActives ??
+    dashboard?.sessionsActives ??
+    0;
+
+  const dateVerification =
+    dashboard?.date_verification || dashboard?.dateVerification || "...";
+
+  const authorizedRequests = requests.filter((item) =>
     isAuthorized(item.status)
-  ).length;
+  );
 
   const rejectedCount = requests.filter((item) => isRejected(item.status)).length;
-
-  const waitingResponseCount = requests.filter((item) =>
-    isWaitingResponse(item.status)
-  ).length;
-
-  const waitingReleaseCount = requests.filter((item) =>
-    isWaitingRelease(item.status)
-  ).length;
-
   const pendingCount = requests.filter((item) => isPending(item.status)).length;
 
-  const urgentRequest = requests.find(
-    (item) =>
-      normalize(item.priority) === "urgent" ||
-      normalize(item.reason) === "urgent"
-  );
+  const currentActiveUser = useMemo(() => {
+    const fromHistory = getActiveUserFromHistory(history, sessionsActives);
 
-  const lastResponseRequest = requests.find((item) =>
-    String(item.response_message || "").trim()
-  );
+    if (!isInvalidActiveUser(fromHistory)) {
+      return fromHistory;
+    }
 
-  const currentActiveUser =
-    requests.find((item) => String(item.active_user_name || "").trim())
-      ?.active_user_name || "Aucun";
+    const fromDashboard = getActiveUserFromDashboard(dashboard);
 
-  async function syncBackend() {
-    await fetch("/api/sync-request-responses", {
-      cache: "no-store",
-    }).catch(() => null);
+    if (!isInvalidActiveUser(fromDashboard)) {
+      return fromDashboard;
+    }
 
-    await fetch("/api/sync-release", {
-      cache: "no-store",
-    }).catch(() => null);
-  }
+    return sessionsActives > 0 ? "Utilisateur RDP actif" : "Aucun";
+  }, [history, dashboard, sessionsActives]);
 
-  async function loadDashboard(showLoading = false) {
+  async function loadDashboard(showLoader = false) {
     try {
-      if (showLoading) {
-        setLoading(true);
-      } else {
-        setRefreshing(true);
-      }
-
-      await syncBackend();
+      if (showLoader) setLoading(true);
 
       const [dashboardRes, requestsRes, historyRes] = await Promise.all([
         fetch("/api/dashboard", { cache: "no-store" }),
-        fetch("/api/requests?page=1&pageSize=20&sort=recent", {
+        fetch("/api/requests?page=1&pageSize=50&sort=recent", {
           cache: "no-store",
         }),
-        fetch("/api/history?page=1&pageSize=5&sort=recent", {
+        fetch("/api/history?page=1&pageSize=20&sort=recent", {
           cache: "no-store",
         }),
       ]);
@@ -318,20 +368,21 @@ export default function ResponsableDashboardPage() {
         ? historyJson.history
         : Array.isArray(historyJson.events)
         ? historyJson.events
-        : Array.isArray(historyJson.rows)
-        ? historyJson.rows
         : [];
 
       setDashboard(dashboardJson);
       setRequests(requestItems);
-      setHistory(historyItems.slice(0, 5));
-      setTotalRequests(requestsJson.total || dashboardJson.total_access_requests || 0);
+      setHistory(historyItems);
+
+      setTotalRequests(
+        requestsJson.total || dashboardJson.total_access_requests || 0
+      );
+
       setTotalHistory(historyJson.total || dashboardJson.total_rdp_events || 0);
     } catch (error) {
       console.error("Erreur chargement dashboard :", error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (showLoader) setLoading(false);
     }
   }
 
@@ -340,488 +391,243 @@ export default function ResponsableDashboardPage() {
 
     const interval = setInterval(() => {
       loadDashboard(false);
-    }, 10000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, []);
 
   return (
     <ResponsableGuard>
-      <main className="min-h-screen bg-gradient-to-b from-slate-100 via-white to-slate-100">
-        <header className="bg-blue-950 text-white shadow-lg">
-          <div className="max-w-7xl mx-auto px-6 py-4 grid grid-cols-1 md:grid-cols-3 items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl border border-white/20 bg-white/10 flex items-center justify-center text-xl">
-                PC
-              </div>
+      <main className="min-h-screen bg-[#f4f7fb] text-slate-950">
+        <AppTopBar />
 
-              <div>
-                <p className="font-bold text-lg">SRM-SM</p>
-                <p className="text-xs text-blue-200">Interface responsable</p>
-              </div>
+        <section className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
+          {loading ? (
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-10 text-center text-slate-500 shadow-sm">
+              Chargement du tableau de bord...
             </div>
-
-            <div className="text-center">
-              <h1 className="text-xl md:text-2xl font-black">
-                Gestion d'acces RDP
-              </h1>
-            </div>
-
-            <div className="flex items-center justify-start md:justify-end gap-3">
-              <div className="hidden sm:flex h-10 w-10 rounded-full bg-blue-700 items-center justify-center font-black">
-                RM
-              </div>
-
-              <div className="text-left md:text-right">
-                <p className="text-xs text-blue-200">Espace responsable</p>
-                <p className="font-bold leading-tight">Responsable</p>
-              </div>
-
-              <a
-                href="/responsable/logout"
-                className="rounded-xl bg-white/10 hover:bg-white/20 px-4 py-2 font-semibold transition"
-              >
-                Deconnexion
-              </a>
-            </div>
-          </div>
-        </header>
-
-        <section className="max-w-7xl mx-auto px-6 py-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <div className="flex items-center gap-4">
-                <div
-                  className={`h-16 w-16 rounded-full flex items-center justify-center text-3xl font-black ${
-                    isLibre
-                      ? "bg-green-100 text-green-700"
-                      : isOccupe
-                      ? "bg-red-100 text-red-700"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {isLibre ? "OK" : isOccupe ? "!" : "?"}
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35 }}
+              className="space-y-7"
+            >
+              <div className="rounded-[2rem] border border-slate-200 bg-white p-7 shadow-sm">
+                <div className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-4 py-2 text-xs font-black uppercase tracking-[0.22em] text-blue-700">
+                  <Monitor className="h-4 w-4" />
+                  Tableau de bord principal
                 </div>
 
-                <div>
-                  <p className="text-sm font-bold text-slate-500">
-                    Etat du poste principal
-                  </p>
-                  <p
-                    className={`text-3xl font-black mt-1 ${
-                      isLibre
-                        ? "text-green-700"
-                        : isOccupe
-                        ? "text-red-700"
-                        : "text-slate-700"
+                <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-950">
+                  Supervision du poste principal
+                </h2>
+
+                <p className="mt-3 text-base leading-7 text-slate-500">
+                  Suivi rapide de l&apos;état du poste, des sessions actives et
+                  des demandes d&apos;accès RDP.
+                </p>
+              </div>
+
+              <div className="overflow-hidden rounded-[2.2rem] border border-red-200 bg-white shadow-[0_24px_70px_rgba(220,38,38,0.18)]">
+                <div className="grid min-h-[320px] lg:grid-cols-[360px_1fr]">
+                  <motion.div
+                    animate={{
+                      backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                    }}
+                    transition={{
+                      duration: 5,
+                      repeat: Infinity,
+                      ease: "linear",
+                    }}
+                    className={`relative flex items-center justify-center overflow-hidden ${
+                      isOccupe
+                        ? "bg-[linear-gradient(135deg,#dc000b,#ff1f35,#b90009,#ff3347)] bg-[length:300%_300%]"
+                        : isLibre
+                        ? "bg-[linear-gradient(135deg,#059669,#10b981,#047857,#34d399)] bg-[length:300%_300%]"
+                        : "bg-[linear-gradient(135deg,#1d4ed8,#2563eb,#1e3a8a,#3b82f6)] bg-[length:300%_300%]"
                     }`}
                   >
-                    {etat}
-                  </p>
-                </div>
-              </div>
+                    <motion.div
+                      animate={{
+                        scale: [1, 1.18, 1],
+                        opacity: [0.35, 0.1, 0.35],
+                      }}
+                      transition={{ duration: 2.4, repeat: Infinity }}
+                      className="absolute h-56 w-56 rounded-full border border-white/35"
+                    />
 
-              <div className="mt-5 border-t border-slate-100 pt-4 text-sm text-slate-500">
-                Derniere verification :{" "}
-                <span className="font-bold text-slate-700">
-                  {dashboard?.date_verification || "..."}
-                </span>
-              </div>
-            </div>
+                    <motion.div
+                      animate={{
+                        scale: [1.1, 1, 1.1],
+                        opacity: [0.18, 0.42, 0.18],
+                      }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                      className="absolute h-36 w-36 rounded-full border border-white/40"
+                    />
 
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <p className="text-sm font-bold text-slate-500">
-                Sessions actives
-              </p>
-              <p className="text-4xl font-black text-blue-700 mt-2">
-                {dashboard?.nombre_sessions_actives ?? 0}
-              </p>
-              <p className="text-sm text-slate-400 mt-3">
-                Utilisateur actif :{" "}
-                <span className="font-bold text-slate-700">
-                  {isLibre ? "Aucun" : currentActiveUser}
-                </span>
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <p className="text-sm font-bold text-slate-500">
-                Demandes d'acces
-              </p>
-              <p className="text-4xl font-black text-orange-600 mt-2">
-                {totalRequests}
-              </p>
-              <p className="text-sm text-slate-400 mt-3">
-                Total des demandes enregistrees
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <p className="text-sm font-bold text-slate-500">
-                Evenements RDP
-              </p>
-              <p className="text-4xl font-black text-purple-700 mt-2">
-                {totalHistory}
-              </p>
-              <p className="text-sm text-slate-400 mt-3">
-                Connexions, reconnexions et deconnexions
-              </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-5">
-              <p className="text-sm font-bold text-slate-500">
-                Autorisees
-              </p>
-              <p className="text-3xl font-black text-green-700 mt-2">
-                {authorizedCount}
-              </p>
-              <p className="text-xs text-slate-400 mt-2">
-                Sur les dernieres demandes affichees
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-5">
-              <p className="text-sm font-bold text-slate-500">
-                Refusees
-              </p>
-              <p className="text-3xl font-black text-red-700 mt-2">
-                {rejectedCount}
-              </p>
-              <p className="text-xs text-slate-400 mt-2">
-                Reponse negative de l'utilisateur actif
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-5">
-              <p className="text-sm font-bold text-slate-500">
-                En attente de reponse
-              </p>
-              <p className="text-3xl font-black text-orange-600 mt-2">
-                {waitingResponseCount}
-              </p>
-              <p className="text-xs text-slate-400 mt-2">
-                Notification envoyee a l'utilisateur actif
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-5">
-              <p className="text-sm font-bold text-slate-500">
-                En attente de liberation
-              </p>
-              <p className="text-3xl font-black text-blue-700 mt-2">
-                {waitingReleaseCount}
-              </p>
-              <p className="text-xs text-slate-400 mt-2">
-                Acceptation recue, session non liberee
-              </p>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-5">
-              <p className="text-sm font-bold text-slate-500">
-                En attente
-              </p>
-              <p className="text-3xl font-black text-slate-700 mt-2">
-                {pendingCount}
-              </p>
-              <p className="text-xs text-slate-400 mt-2">
-                Demandes non finalisees
-              </p>
-            </div>
-          </div>
-
-          <ResponsableNav />
-
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h2 className="text-2xl font-black text-slate-800">
-                Tableau de bord responsable
-              </h2>
-              <p className="text-slate-500 mt-1">
-                Vue generale de l'etat du poste, des demandes prioritaires et
-                de l'historique RDP.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <a
-                href="/api/export-requests"
-                className="rounded-2xl bg-blue-700 hover:bg-blue-800 text-white px-5 py-3 font-black shadow-lg shadow-blue-100"
-              >
-                Export demandes
-              </a>
-
-              <a
-                href="/api/export-history"
-                className="rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 font-black shadow-lg shadow-emerald-100"
-              >
-                Export historique RDP
-              </a>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 xl:grid-cols-[2fr_1.1fr] gap-6">
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-black text-slate-800">
-                    Demandes recentes
-                  </h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Priorites, messages et reponses de l'utilisateur actif.
-                  </p>
-                </div>
-
-                <a
-                  href="/responsable/demandes"
-                  className="text-blue-700 font-bold"
-                >
-                  Voir toutes
-                </a>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-slate-600">
-                    <tr>
-                      <th className="text-left px-6 py-4">Demandeur</th>
-                      <th className="text-left px-6 py-4">Motif</th>
-                      <th className="text-left px-6 py-4">Statut</th>
-                      <th className="text-left px-6 py-4">
-                        Utilisateur actif / reponse
-                      </th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-slate-100">
-                    {requests.slice(0, 6).length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-8 text-slate-500">
-                          Aucune demande recente.
-                        </td>
-                      </tr>
-                    ) : (
-                      requests.slice(0, 6).map((item) => {
-                        const user = getRequestUser(item);
-                        const msg = String(item.message || "").trim();
-                        const activeUser = String(
-                          item.active_user_name || ""
-                        ).trim();
-                        const responseMsg = String(
-                          item.response_message || ""
-                        ).trim();
-
-                        return (
-                          <tr key={item.id} className="hover:bg-slate-50">
-                            <td className="px-6 py-4">
-                              <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-full bg-blue-700 text-white flex items-center justify-center font-black">
-                                  {getInitials(user)}
-                                </div>
-                                <div>
-                                  <p className="font-bold text-slate-800">
-                                    {user}
-                                  </p>
-                                  <p className="text-xs text-slate-400">
-                                    {cleanIp(item.ip)} - {formatDate(item.request_time)}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-
-                            <td className="px-6 py-4 text-slate-700 max-w-[260px]">
-                              <p className="font-bold">
-                                {priorityLabel(item.priority, item.reason)}
-                              </p>
-                              <p className="text-xs text-slate-500 mt-1">
-                                {item.reason || "-"}
-                              </p>
-                              {msg ? (
-                                <p className="text-xs text-slate-600 mt-2 leading-5">
-                                  Message : {msg}
-                                </p>
-                              ) : null}
-                            </td>
-
-                            <td className="px-6 py-4">
-                              <span
-                                className={`inline-flex items-center border px-3 py-1 rounded-full text-xs font-black ${statusBadgeClass(
-                                  item.status
-                                )}`}
-                              >
-                                {statusLabel(item.status)}
-                              </span>
-                            </td>
-
-                            <td className="px-6 py-4 text-slate-700 max-w-[320px]">
-                              <p className="font-bold">
-                                {activeUser || "Aucun utilisateur actif"}
-                              </p>
-                              <p className="text-xs text-slate-500 mt-1">
-                                Reponse : {responseLabel(item.current_user_response)}
-                              </p>
-                              {responseMsg ? (
-                                <p className="text-xs text-slate-600 mt-2 leading-5">
-                                  {responseMsg}
-                                </p>
-                              ) : (
-                                <p className="text-xs text-slate-400 mt-2">
-                                  Aucune reponse enregistree
-                                </p>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 overflow-hidden">
-              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-                <div>
-                  <h3 className="text-xl font-black text-slate-800">
-                    Historique RDP recent
-                  </h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Derniers evenements detectes.
-                  </p>
-                </div>
-
-                <a
-                  href="/responsable/historique"
-                  className="text-blue-700 font-bold"
-                >
-                  Voir tout
-                </a>
-              </div>
-
-              <div className="divide-y divide-slate-100">
-                {history.length === 0 ? (
-                  <div className="px-6 py-8 text-slate-500">
-                    Aucun evenement recent.
-                  </div>
-                ) : (
-                  history.map((item) => (
-                    <div
-                      key={`${item.id}-${item.date}-${item.heure}`}
-                      className="px-6 py-4"
+                    <motion.div
+                      animate={{ y: [0, -7, 0] }}
+                      transition={{ duration: 2.2, repeat: Infinity }}
+                      className="relative flex h-28 w-28 items-center justify-center rounded-[2rem] bg-white/15 text-white shadow-2xl ring-1 ring-white/30 backdrop-blur-md"
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3">
-                          <span
-                            className={`h-10 w-10 rounded-full flex items-center justify-center font-black ${actionBadgeClass(
-                              item.action
-                            )}`}
-                          >
-                            {normalize(item.action).includes("deconnexion") ||
-                            normalize(item.action).includes("deconnectee")
-                              ? "OFF"
-                              : normalize(item.action).includes("reconnexion")
-                              ? "RE"
-                              : "ON"}
-                          </span>
+                      {isOccupe ? (
+                        <Lock className="h-12 w-12" />
+                      ) : isLibre ? (
+                        <CheckCircle2 className="h-12 w-12" />
+                      ) : (
+                        <Monitor className="h-12 w-12" />
+                      )}
+                    </motion.div>
+                  </motion.div>
 
-                          <div>
-                            <p className="font-black text-slate-800">
-                              {item.action || item.nomSession || "Evenement"}
-                            </p>
-                            <p className="text-sm text-slate-500">
-                              {item.utilisateur || "N/A"}
-                            </p>
-                            <p className="text-xs text-slate-400 mt-1">
-                              {item.ip || "N/A"}
-                            </p>
-                          </div>
-                        </div>
+                  <div className="p-8 lg:p-10">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p
+                          className={`text-xs font-black uppercase tracking-[0.25em] ${
+                            isOccupe
+                              ? "text-red-600"
+                              : isLibre
+                              ? "text-emerald-600"
+                              : "text-blue-700"
+                          }`}
+                        >
+                          État du poste
+                        </p>
 
-                        <div className="text-right text-xs text-slate-500">
-                          <p>{item.date}</p>
-                          <p>{item.heure}</p>
-                        </div>
+                        <h1
+                          className={`mt-3 text-6xl font-black tracking-tight lg:text-7xl ${
+                            isOccupe
+                              ? "text-red-600"
+                              : isLibre
+                              ? "text-emerald-600"
+                              : "text-blue-700"
+                          }`}
+                        >
+                          {etat}
+                        </h1>
+                      </div>
+
+                      <div
+                        className={`rounded-full px-4 py-2 text-xs font-black ${
+                          isOccupe
+                            ? "bg-red-50 text-red-700"
+                            : isLibre
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-blue-50 text-blue-700"
+                        }`}
+                      >
+                        {isOccupe
+                          ? "Session en cours"
+                          : isLibre
+                          ? "Disponible"
+                          : "Non déterminé"}
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[1.4fr_1fr] gap-6">
-            <div className="bg-white rounded-3xl shadow-lg border border-slate-100 p-6">
-              <h3 className="text-xl font-black text-slate-800 mb-6">
-                Resume operationnel
-              </h3>
+                    <div className="mt-8 grid gap-5 md:grid-cols-3">
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                        <div className="flex items-center gap-2 text-red-500">
+                          <UserCheck className="h-5 w-5" />
+                          <p className="text-xs font-black uppercase tracking-wide">
+                            Utilisateur actif
+                          </p>
+                        </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="rounded-2xl bg-blue-50 border border-blue-100 p-5">
-                  <p className="text-sm text-blue-700 font-bold">
-                    Derniere demande urgente
-                  </p>
-                  <p className="text-lg font-black text-blue-950 mt-2">
-                    {urgentRequest ? getRequestUser(urgentRequest) : "Aucune"}
-                  </p>
-                  <p className="text-xs text-blue-900/70 mt-2">
-                    {urgentRequest
-                      ? urgentRequest.message || urgentRequest.reason || "Urgent"
-                      : "Aucune demande urgente recente"}
-                  </p>
-                </div>
+                        <p className="mt-3 text-lg font-black text-slate-950">
+                          {isLibre ? "Aucun" : currentActiveUser}
+                        </p>
+                      </div>
 
-                <div className="rounded-2xl bg-green-50 border border-green-100 p-5">
-                  <p className="text-sm text-green-700 font-bold">
-                    Derniere reponse
-                  </p>
-                  <p className="text-lg font-black text-green-950 mt-2">
-                    {lastResponseRequest
-                      ? responseLabel(lastResponseRequest.current_user_response)
-                      : "Aucune"}
-                  </p>
-                  <p className="text-xs text-green-900/70 mt-2">
-                    {lastResponseRequest?.response_message ||
-                      "Aucune reponse recente"}
-                  </p>
-                </div>
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                        <div className="flex items-center gap-2 text-red-500">
+                          <Clock3 className="h-5 w-5" />
+                          <p className="text-xs font-black uppercase tracking-wide">
+                            Vérification
+                          </p>
+                        </div>
 
-                <div className="rounded-2xl bg-purple-50 border border-purple-100 p-5">
-                  <p className="text-sm text-purple-700 font-bold">
-                    Total suivi
-                  </p>
-                  <p className="text-2xl font-black text-purple-800 mt-2">
-                    {totalHistory + totalRequests}
-                  </p>
-                  <p className="text-xs text-purple-900/70 mt-2">
-                    Demandes et evenements RDP
-                  </p>
+                        <p className="mt-3 text-lg font-black text-slate-950">
+                          {dateVerification}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl border border-slate-100 bg-slate-50 p-5">
+                        <div className="flex items-center gap-2 text-red-500">
+                          <Monitor className="h-5 w-5" />
+                          <p className="text-xs font-black uppercase tracking-wide">
+                            Sessions actives
+                          </p>
+                        </div>
+
+                        <p className="mt-3 text-lg font-black text-slate-950">
+                          {sessionsActives}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="bg-blue-50 rounded-3xl border border-blue-100 p-6">
-              <h3 className="text-xl font-black text-blue-950">
-                Supervision RDP
-              </h3>
-              <p className="text-blue-900/80 mt-3 leading-7">
-                Le responsable suit l'etat du poste principal, les demandes
-                prioritaires, les reponses de l'utilisateur actif et
-                l'historique RDP pour garantir une tracabilite complete.
-              </p>
-              <p className="text-xs text-blue-900/60 mt-4">
-                {refreshing ? "Actualisation en cours..." : "Donnees a jour"}
-              </p>
-            </div>
-          </div>
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                <KpiCard
+                  title="Sessions actives"
+                  value={sessionsActives}
+                  subtitle={`Utilisateur actif : ${
+                    isLibre ? "Aucun" : currentActiveUser
+                  }`}
+                  icon={<UserCheck className="h-6 w-6" />}
+                  color="blue"
+                />
 
-          {loading && (
-            <p className="text-center text-sm text-slate-400">
-              Chargement des donnees...
-            </p>
+                <KpiCard
+                  title="Total demandes"
+                  value={totalRequests}
+                  subtitle="Nombre total des demandes enregistrées."
+                  icon={<Clock3 className="h-6 w-6" />}
+                  color="orange"
+                />
+
+                <KpiCard
+                  title="Événements RDP"
+                  value={totalHistory}
+                  subtitle="Connexions et déconnexions enregistrées."
+                  icon={<Monitor className="h-6 w-6" />}
+                  color="blue"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+                <SmallStatusCard
+                  title="Demandes en attente"
+                  value={pendingCount}
+                  icon={<AlertTriangle className="h-5 w-5" />}
+                  color="orange"
+                />
+
+                <SmallStatusCard
+                  title="Demandes autorisées"
+                  value={authorizedRequests.length}
+                  icon={<ShieldCheck className="h-5 w-5" />}
+                  color="green"
+                />
+
+                <SmallStatusCard
+                  title="Demandes refusées"
+                  value={rejectedCount}
+                  icon={<XCircle className="h-5 w-5" />}
+                  color="red"
+                />
+              </div>
+            </motion.div>
           )}
         </section>
       </main>
     </ResponsableGuard>
   );
 }
+
+
+
+
