@@ -45,6 +45,9 @@ type LastRequestResponse = {
     current_user_response?: string;
     response_message?: string;
     response_at?: string;
+    active_user_name?: string;
+    activeUserName?: string;
+    currentUserText?: string;
   } | null;
 };
 
@@ -223,6 +226,32 @@ function findCurrentEmployee(items: HistoryItem[]) {
   return "Session RDP active";
 }
 
+function getWaitingMessage(activeUser: string, responseMessage?: string) {
+  const user = String(activeUser || "").trim();
+  const apiMessage = String(responseMessage || "").trim();
+  const normalizedApiMessage = normalize(apiMessage);
+
+  const isGenericApiMessage =
+    normalizedApiMessage.includes("utilisateur actuellement connecte") ||
+    normalizedApiMessage.includes("utilisateur actif") ||
+    normalizedApiMessage.includes("session rdp active");
+
+  if (
+    user &&
+    user !== "Aucun" &&
+    user !== "Session RDP active" &&
+    isValidUserName(user)
+  ) {
+    return `Demande envoyée à ${user}. En attente de sa réponse.`;
+  }
+
+  if (apiMessage && !isGenericApiMessage) {
+    return apiMessage;
+  }
+
+  return "Demande envoyée à l'utilisateur actif. En attente de sa réponse.";
+}
+
 export default function EmployePage() {
   const router = useRouter();
 
@@ -334,7 +363,7 @@ export default function EmployePage() {
     const interval = setInterval(() => {
       loadAllData();
       loadLastRequestResult(employeName);
-    }, 3000);
+    }, 5000);
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -457,14 +486,17 @@ export default function EmployePage() {
       }
 
       if (isWaitingStatus(requestStatus)) {
+        const activeNameFromRequest =
+          lastRequest.active_user_name ||
+          lastRequest.activeUserName ||
+          lastRequest.currentUserText ||
+          currentUserText;
+
         setActiveRequestId(requestId);
         setLastDisplayedFinalId(null);
         setRequestAuthorized(false);
         setRequestWaiting(true);
-        setMessage(
-          responseMessage ||
-            "Demande envoyée à l'utilisateur actuellement connecté. En attente de sa réponse."
-        );
+        setMessage(getWaitingMessage(activeNameFromRequest, responseMessage));
         return;
       }
 
@@ -597,10 +629,7 @@ export default function EmployePage() {
       } else if (waiting) {
         setRequestAuthorized(false);
         setRequestWaiting(true);
-        setMessage(
-          responseMessage ||
-            "Demande envoyée à l'utilisateur actuellement connecté. En attente de sa réponse."
-        );
+        setMessage(getWaitingMessage(currentUserText, responseMessage));
       } else if (rejected) {
         setRequestAuthorized(false);
         setRequestWaiting(false);
@@ -663,7 +692,7 @@ export default function EmployePage() {
         if (!currentEmployeeConnectedRef.current) {
           setMessage("");
         }
-      }, 3000);
+      }, 5000);
 
       await loadAllData();
       await loadLastRequestResult(employeName);
@@ -1127,6 +1156,3 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-
-
