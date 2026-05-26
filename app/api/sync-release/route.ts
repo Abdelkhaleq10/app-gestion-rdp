@@ -5,8 +5,6 @@ import path from "path";
 
 export const dynamic = "force-dynamic";
 
-const SECURITY_DELAY_SECONDS = 10;
-
 const RESPONSE_DIR = "C:\\Logs\\RDP_Request_Responses";
 const SESSION_OWNER_FILE = path.join(RESPONSE_DIR, "session-owner.json");
 
@@ -21,6 +19,7 @@ type WaitingRequest = {
   Utilisateur: string;
   active_user_name?: string;
   response_at?: string;
+  current_user_response?: string;
 };
 
 function normalize(value: unknown) {
@@ -96,27 +95,6 @@ function getCurrentStatus(): StatusRow {
   };
 }
 
-function isPosteLibre(status: StatusRow) {
-  const etat = normalize(status.etat_poste);
-  const sessions = Number(status.nombre_sessions_actives || 0);
-
-  return etat.includes("libre") && sessions === 0;
-}
-
-function getNextWaitingReleaseRequest() {
-  return db
-    .prepare(
-      `
-      SELECT id, Utilisateur, active_user_name, response_at
-      FROM access_requests
-      WHERE status = 'waiting_release'
-      ORDER BY priority_level DESC, request_time ASC, id ASC
-      LIMIT 1
-      `
-    )
-    .get() as WaitingRequest | undefined;
-}
-
 function countActiveRequests() {
   const row = db
     .prepare(
@@ -131,18 +109,37 @@ function countActiveRequests() {
   return Number(row?.total || 0);
 }
 
-function secondsSince(value: string | undefined) {
-  if (!value) return 999999;
-
-  const date = new Date(value.replace(" ", "T"));
-  const time = date.getTime();
-
-  if (Number.isNaN(time)) return 999999;
-
-  return Math.floor((Date.now() - time) / 1000);
+function getAcceptedWaitingReleaseRequest() {
+  return db
+    .prepare(
+      `
+      SELECT id, Utilisateur, active_user_name, response_at, current_user_response
+      FROM access_requests
+      WHERE status = 'waiting_release'
+        AND current_user_response = 'accepted'
+      ORDER BY priority_level DESC, request_time ASC, id ASC
+      LIMIT 1
+      `
+    )
+    .get() as WaitingRequest | undefined;
 }
 
-function insertApplicationEvent(request: WaitingRequest) {
+function getRejectedWaitingReleaseRequest() {
+  return db
+    .prepare(
+      `
+      SELECT id, Utilisateur, active_user_name, response_at, current_user_response
+      FROM access_requests
+      WHERE status = 'waiting_release'
+        AND current_user_response = 'rejected'
+      ORDER BY response_at DESC, id DESC
+      LIMIT 1
+      `
+    )
+    .get() as WaitingRequest | undefined;
+}
+
+function insertApplicationEvent(request: WaitingRequest, action: string) {
   try {
     db.prepare(
       `
@@ -165,13 +162,7 @@ function insertApplicationEvent(request: WaitingRequest) {
         ?
       )
       `
-    ).run(
-      request.Utilisateur,
-      "Application",
-      "N/A",
-      "Demande autorisee",
-      "N/A"
-    );
+    ).run(request.Utilisateur, "Application", "N/A", action, "N/A");
   } catch {
     // Ignore if rdp_events schema is different.
   }
@@ -181,53 +172,63 @@ export async function GET() {
   try {
     const status = getCurrentStatus();
 
-    if (!isPosteLibre(status)) {
+    const rejectedRequest = getRejectedWaitingReleaseRequest();
+
+    if (rejectedRequest) {
+      const activeUser =
+        String(rejectedRequest.active_user_name || "").trim() ||
+        "l'utilisateur actif";
+
+      const responseMessage = `Demande refusee par ${activeUser}.`;
+
+      const result = db
+        .prepare(
+          `
+          UPDATE access_requests
+          SET
+            status = 'rejected',
+            response_message = ?,
+            response_at = datetime('now')
+          WHERE id = ?
+            AND status = 'waiting_release'
+            AND current_user_response = 'rejected'
+          `
+        )
+        .run(responseMessage, rejectedRequest.id);
+
+      if (result.changes > 0) {
+        insertApplicationEvent(rejectedRequest, "Demande refusee");
+      }
+
       return NextResponse.json({
         success: true,
         released: false,
-        message:
-          "Le poste est encore occupe. L'acces ne sera autorise qu'apres la fermeture complete de la session.",
+        message: "La demande a ete refusee par l'utilisateur actif.",
         status,
-        updated: 0,
+        updated: result.changes,
+        rejectedRequestId: rejectedRequest.id,
         activeRequests: countActiveRequests(),
       });
     }
 
-    const request = getNextWaitingReleaseRequest();
+    const acceptedRequest = getAcceptedWaitingReleaseRequest();
 
-    if (!request) {
+    if (!acceptedRequest) {
       return NextResponse.json({
         success: true,
         released: false,
-        message: "Poste libre, aucune demande en attente de liberation.",
+        message: "Aucune demande acceptee en attente de synchronisation.",
         status,
         updated: 0,
-        activeRequests: countActiveRequests(),
-      });
-    }
-
-    const waitedSeconds = secondsSince(request.response_at);
-
-    if (waitedSeconds < SECURITY_DELAY_SECONDS) {
-      return NextResponse.json({
-        success: true,
-        released: false,
-        message: `Poste libre. Delai de securite en cours avant autorisation definitive (${SECURITY_DELAY_SECONDS - waitedSeconds}s restantes).`,
-        status,
-        updated: 0,
-        authorizedRequestId: request.id,
-        authorizedEmployee: request.Utilisateur,
-        waitedSeconds,
-        securityDelaySeconds: SECURITY_DELAY_SECONDS,
         activeRequests: countActiveRequests(),
       });
     }
 
     const activeUser =
-      String(request.active_user_name || "").trim() ||
-      "l'utilisateur actuellement connecte";
+      String(acceptedRequest.active_user_name || "").trim() ||
+      "l'utilisateur actif";
 
-    const responseMessage = `Poste libere par ${activeUser}. Acces autorise.`;
+    const responseMessage = `Demande acceptee par ${activeUser}. Acces autorise.`;
 
     const result = db
       .prepare(
@@ -239,23 +240,27 @@ export async function GET() {
           response_at = datetime('now')
         WHERE id = ?
           AND status = 'waiting_release'
+          AND current_user_response = 'accepted'
         `
       )
-      .run(responseMessage, request.id);
+      .run(responseMessage, acceptedRequest.id);
 
     if (result.changes > 0) {
-      insertApplicationEvent(request);
-      writeSessionOwner(request.Utilisateur, "sync-release-authorized-after-liberation");
+      insertApplicationEvent(acceptedRequest, "Demande autorisee");
+      writeSessionOwner(
+        acceptedRequest.Utilisateur,
+        "sync-release-authorized-after-accept"
+      );
     }
 
     return NextResponse.json({
       success: true,
       released: true,
-      message: "Poste libere. La demande acceptee a ete autorisee.",
+      message: "La demande acceptee a ete autorisee.",
       status,
       updated: result.changes,
-      authorizedRequestId: request.id,
-      authorizedEmployee: request.Utilisateur,
+      authorizedRequestId: acceptedRequest.id,
+      authorizedEmployee: acceptedRequest.Utilisateur,
       activeRequests: countActiveRequests(),
     });
   } catch (error: any) {
