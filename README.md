@@ -133,27 +133,41 @@ npm run dev
 
 ## Dashboard
 
-(Add screenshot here)
+![Dashboard Libre](Dashboard Libre.png)
+
+![Dashboard Occupé](Dashboard occupée.png)
 
 ---
 
 ## Employee Interface
 
-(Add screenshot here)
+![Login Employé](Login Employé.png)
+
+![Espace Employé](espace employer.png)
+
+![Formulaire](Formulaire de demande d'accès .png)
 
 ---
 
 ## Requests Management
 
-(Add screenshot here)
+![Demandes](Demandes.png)
 
 ---
 
 ## RDP History
 
-(Add screenshot here)
+![Historiques](Historiques.png)
+
+![Export Historique](export historique.png)
 
 ---
+
+## System Status
+
+![Poste Libre](Poste Libre.png)
+
+![Poste Occupé](Poste occupée.png)
 
 # 🚀 Future Improvements
 
