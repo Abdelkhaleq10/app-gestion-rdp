@@ -129,45 +129,20 @@ npm run dev
 
 ---
 
-# 📸 Screenshots
+## 📸 Screenshots
 
-## Dashboard
+Application screenshots are available in the `assets/` directory.
 
-![Dashboard Libre](Dashboard Libre.png)
+The folder contains screenshots of:
 
-![Dashboard Occupé](Dashboard occupée.png)
-
----
-
-## Employee Interface
-
-![Login Employé](Login Employé.png)
-
-![Espace Employé](espace employer.png)
-
-![Formulaire](Formulaire de demande d'accès .png)
-
----
-
-## Requests Management
-
-![Demandes](Demandes.png)
-
----
-
-## RDP History
-
-![Historiques](Historiques.png)
-
-![Export Historique](export historique.png)
-
----
-
-## System Status
-
-![Poste Libre](Poste Libre.png)
-
-![Poste Occupé](Poste occupée.png)
+- Dashboard
+- Employee Interface
+- Responsible Dashboard
+- Access Requests
+- RDP History
+- Login Pages
+- System Status (Free / Occupied)
+- Export History
 
 # 🚀 Future Improvements
 
